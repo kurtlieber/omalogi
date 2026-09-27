@@ -52,7 +52,7 @@ let
       (src + "/LICENSE-APACHE")
       (src + "/LICENSE-MIT")
       (src + "/crates")
-      (src + "/design/icon")
+      (src + "/assets/icon")
       (src + "/docs/config.example.toml")
       (src + "/packaging/linux/desktop")
       (src + "/packaging/linux/systemd")
@@ -172,10 +172,10 @@ rustPlatform.buildRustPackage {
     # Every standard indexed hicolor size: a stock `hicolor/index.theme`
     # stops at 512x512, so an icon installed only under `1024x1024/apps` is
     # invisible to launchers that resolve by theme index.
-    install -Dm644 design/icon/openlogi.png \
+    install -Dm644 assets/icon/omalogi.png \
       "$out/share/icons/hicolor/1024x1024/apps/openlogi.png"
     for size in 512 256 128 64 48 32 16; do
-      install -Dm644 "design/icon/openlogi-$size.png" \
+      install -Dm644 "assets/icon/omalogi-$size.png" \
         "$out/share/icons/hicolor/''${size}x''${size}/apps/openlogi.png"
     done
     install -Dm644 packaging/linux/udev/70-openlogi.rules \

@@ -13,14 +13,6 @@ devenv shell -- cargo run -p xtask -- <command>
 
 - `ci [--list] [--dry-run] [JOB…]` — reproduce the `ci.yml` jobs this host can
   run; a job it cannot is skipped with a reason, never passed.
-- `macos icon` — compile `design/icon/openlogi.icon` into the `AppIcon.icns` and
-  `Assets.car` under `crates/openlogi-desktop/icon/`.
-- `macos bundle [--channel dev|production]` — build `OpenLogi.app` and embed the
-  agent and overlay helpers.
-- `macos dev-bundle --binary <path>` — wrap a freshly built desktop binary in
-  `target/dev/OpenLogi.app`. Driven by the Cargo runner, not run by hand.
-- `macos dmg` — package an existing app bundle into the branded DMG.
-- `macos package` — build the app bundle, optionally sign it, then create the branded DMG.
 - `linux package` — build release binaries and package `.deb`, `.rpm`, and
   `.pkg.tar.zst` artifacts with nfpm.
 - `release changelog` — write the next workspace version's section into

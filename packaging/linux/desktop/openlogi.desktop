@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=OpenLogi
-Comment=Logitech HID++ device control — remap buttons, DPI, SmartShift
+Name=Omalogi
+Comment=Logitech HID++ device control for Omarchy — remap buttons, DPI, SmartShift
 Exec=openlogi-desktop
 Icon=openlogi
 Terminal=false

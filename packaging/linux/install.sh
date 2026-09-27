@@ -127,13 +127,13 @@ sudo install -Dm644 "${SCRIPT_DIR}/desktop/openlogi.desktop" \
 # Every standard indexed hicolor size, not only the 1024 master: a stock
 # `hicolor/index.theme` stops at 512x512, so a launcher that resolves icons
 # through the theme index shows nothing when only `1024x1024/apps` exists.
-ICON_SRC="${REPO_ROOT}/design/icon/openlogi.png"
+ICON_SRC="${REPO_ROOT}/assets/icon/omalogi.png"
 if [ -f "$ICON_SRC" ]; then
   echo "Installing icon …"
   sudo install -Dm644 "$ICON_SRC" \
     /usr/share/icons/hicolor/1024x1024/apps/openlogi.png
   for size in 512 256 128 64 48 32 16; do
-    sized="${REPO_ROOT}/design/icon/openlogi-${size}.png"
+    sized="${REPO_ROOT}/assets/icon/omalogi-${size}.png"
     [ -f "$sized" ] || continue
     sudo install -Dm644 "$sized" \
       "/usr/share/icons/hicolor/${size}x${size}/apps/openlogi.png"
