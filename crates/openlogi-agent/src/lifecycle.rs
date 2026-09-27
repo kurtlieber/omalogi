@@ -14,15 +14,12 @@
 //! [`Wanted::arm`], and arming without settling the dormancy question is
 //! unrepresentable — `arm` exists only on [`Wanted`], whose sole producer is the
 //! gate. Moving `Armed` into `Running` also hands the single-consumer resume
-//! stream to inventory exactly once. The gate *waits* only on macOS, where the
-//! sunk launch-at-login switch makes an unwanted login start possible; Windows
-//! and Linux only ever start wanted, so their gate passes unconditionally.
+//! stream to inventory exactly once. Linux only ever starts wanted (systemd
+//! runs the unit only when it is enabled), so the gate passes unconditionally.
 
 mod transition;
 
 use std::sync::Arc;
-#[cfg(target_os = "macos")]
-use std::time::Duration;
 
 use futures::StreamExt as _;
 use openlogi_agent_core::event_monitor::EventMonitor;
@@ -36,46 +33,21 @@ use openlogi_hook::Hook;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
-#[cfg(target_os = "macos")]
-use openlogi_ipc::ClientKind;
-
 use self::transition::{Replacement, WatcherFleet};
 use crate::shutdown::{self, ShutdownRequest, ShutdownRequests, ShutdownSignals};
 use crate::startup::{self, Core, InputServices};
 use crate::{autostart, overlay, server};
 
-/// How long a dormant agent waits before leaving — generous next to the
-/// seconds a kickstarting GUI needs, and the window costs only an idle
-/// process that has opened no device and prompted for nothing.
-#[cfg(target_os = "macos")]
-const DORMANT_TIMEOUT: Duration = Duration::from_secs(60);
-
 /// Walk the whole lifecycle: bootstrap, gate, arm, run. This is the async
 /// core's entry point; `main` only decides which thread it runs on.
-pub(crate) async fn run(
-    config: Config,
-    shutdown_requests: ShutdownRequests,
-    #[cfg(target_os = "macos")] armed_tx: std::sync::mpsc::Sender<()>,
-) {
-    // Reconcile the agent's launch-at-login autostart and clear the legacy GUI
-    // LaunchAgent, before `config` moves into the orchestrator.
+pub(crate) async fn run(config: Config, shutdown_requests: ShutdownRequests) {
+    // Reconcile the agent's launch-at-login autostart before `config` moves
+    // into the orchestrator.
     autostart::reconcile(config.app_settings.launch_at_login);
 
-    let Some(booted) = Booted::bootstrap(
-        config,
-        shutdown_requests,
-        #[cfg(target_os = "macos")]
-        armed_tx,
-    )
-    .await
-    else {
+    let Some(booted) = Booted::bootstrap(config, shutdown_requests).await else {
         return;
     };
-    #[cfg(target_os = "macos")]
-    let Some(wanted) = booted.gate().await else {
-        return;
-    };
-    #[cfg(not(target_os = "macos"))]
     let wanted = booted.gate();
     wanted.arm().run().await;
 }
@@ -86,103 +58,29 @@ pub(crate) async fn run(
 struct Booted {
     core: Core,
     signals: ShutdownSignals,
-    /// The sole receiver for tray, uninstall, and replacement requests. It
+    /// The sole receiver for uninstall and replacement requests. It
     /// moves through the typestates with process-resource ownership.
     shutdown_requests: ShutdownRequests,
     /// The hook kill-switch, startup-only on purpose: flipping it requires
     /// an agent restart, which the config docs state.
     capture_mouse_events: bool,
-    #[cfg(target_os = "macos")]
-    launch_at_login: bool,
-    /// Releases the main thread's tray loop once the agent arms.
-    #[cfg(target_os = "macos")]
-    armed_tx: std::sync::mpsc::Sender<()>,
 }
 
 impl Booted {
-    async fn bootstrap(
-        config: Config,
-        shutdown_requests: ShutdownRequests,
-        #[cfg(target_os = "macos")] armed_tx: std::sync::mpsc::Sender<()>,
-    ) -> Option<Self> {
+    async fn bootstrap(config: Config, shutdown_requests: ShutdownRequests) -> Option<Self> {
         // Read before `config` moves into the orchestrator.
         let capture_mouse_events = config.app_settings.capture_mouse_events;
-        #[cfg(target_os = "macos")]
-        let launch_at_login = config.app_settings.launch_at_login;
         let core = startup::bootstrap(config).await?;
         Some(Self {
             core,
             signals: ShutdownSignals::install(),
             shutdown_requests,
             capture_mouse_events,
-            #[cfg(target_os = "macos")]
-            launch_at_login,
-            #[cfg(target_os = "macos")]
-            armed_tx,
         })
     }
 
-    /// The dormancy gate. The service plist always carries the login trigger
-    /// (`SuccessfulExit` implies `RunAtLoad`), so preference-off plus no
-    /// client in sight means "launchd ran us at login the user opted out
-    /// of" — wait briefly, then leave with the `exit(0)` launchd will not
-    /// respawn. Demand is a [`ClientKind::Gui`] declaration, not a mere
-    /// connection: other clients are served without waking anything, and the
-    /// takeover probe never declares at all.
-    #[cfg(target_os = "macos")]
-    async fn gate(mut self) -> Option<Wanted> {
-        if self.launch_at_login {
-            return Some(Wanted(self));
-        }
-        info!("launch_at_login is off — dormant until a client demands arming");
-        // The deadline is absolute: a served-but-not-arming client does not
-        // buy the dormant agent more time.
-        let deadline = tokio::time::sleep(DORMANT_TIMEOUT);
-        tokio::pin!(deadline);
-        loop {
-            tokio::select! {
-                Some(kind) = self.core.demand.recv() => match kind {
-                    ClientKind::Gui => {
-                        info!("GUI connected — arming");
-                        return Some(Wanted(self));
-                    }
-                    kind => info!(client = ?kind, "served while dormant — not arming"),
-                },
-                () = &mut deadline => {
-                    info!("no arming demand — exiting until wanted");
-                    return None;
-                }
-                () = self.signals.recv() => {
-                    info!("shutdown signal while dormant — exiting");
-                    return None;
-                }
-                Some(request) = self.shutdown_requests.recv() => match request {
-                    ShutdownRequest::TrayQuit { core_guard } => {
-                        let _core_guard = core_guard;
-                        info!("tray quit while dormant — exiting");
-                        return None;
-                    }
-                    ShutdownRequest::Uninstalled => {
-                        info!("uninstalled while dormant — exiting");
-                        return None;
-                    }
-                    ShutdownRequest::Restart { path, retry } => {
-                        info!(path = %path.display(), "executable changed while dormant — scheduling relaunch");
-                        if let Err(error) = crate::binary_watch::schedule(&path) {
-                            warn!(%error, "could not schedule updated agent relaunch — keeping the current image and retrying");
-                            let _ = retry.send(());
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Windows and Linux have no login trigger to second-guess: every start
-    /// was asked for, so the gate passes unconditionally.
-    #[cfg(not(target_os = "macos"))]
+    /// Linux has no login trigger to second-guess: every start was asked
+    /// for, so the gate passes unconditionally.
     fn gate(self) -> Wanted {
         Wanted(self)
     }
@@ -194,7 +92,7 @@ impl Booted {
 struct Wanted(Booted);
 
 impl Wanted {
-    /// The arming point: the tray may show, the overlay may start,
+    /// The arming point: the overlay may start,
     /// permissions may prompt, devices may open.
     fn arm(self) -> Armed {
         let Booted {
@@ -202,12 +100,8 @@ impl Wanted {
             signals,
             shutdown_requests,
             capture_mouse_events,
-            #[cfg(target_os = "macos")]
-            armed_tx,
             ..
         } = self.0;
-        #[cfg(target_os = "macos")]
-        let _ = armed_tx.send(());
         overlay::spawn();
         prompt_missing_accessibility(capture_mouse_events);
 
@@ -259,7 +153,7 @@ struct Running {
     signals: ShutdownSignals,
     shutdown_requests: ShutdownRequests,
     hidpp_watchers: WatcherFleet,
-    /// The OS hook, installed once Accessibility is granted and dropped on
+    /// The OS hook, installed once input access is granted and dropped on
     /// revoke (dropping the handle stops its thread).
     hook: Option<Hook>,
     capture_mouse_events: bool,
@@ -270,12 +164,6 @@ impl Armed {
     /// told to leave (low-frequency by contract — [`startup::WatcherEvent`]).
     async fn run(self) {
         let Self { mut running } = self;
-        #[cfg(target_os = "macos")]
-        if request_input_monitoring_and_schedule_relaunch().await {
-            running
-                .shut_down("Input Monitoring permission relaunch", None)
-                .await;
-        }
 
         // HID++ watchers need no Accessibility — start them up front.
         running.restart_hidpp_watchers();
@@ -287,7 +175,7 @@ impl Armed {
                 biased;
 
                 () = running.signals.recv() => {
-                    running.shut_down("shutdown signal", None).await;
+                    running.shut_down("shutdown signal").await;
                 }
                 Some(request) = running.shutdown_requests.recv() => {
                     running.handle_shutdown_request(request).await;
@@ -308,28 +196,6 @@ impl Armed {
 }
 
 impl Running {
-    /// Retire a terminal Windows hook worker and publish that input capture is
-    /// no longer installed. The native callbacks have already been cleared,
-    /// so the interval before this check remains pass-through rather than
-    /// suppressing input without a consumer.
-    #[cfg(target_os = "windows")]
-    async fn apply_hook_health(&mut self) {
-        let Some(hook) = self.hook.as_ref() else {
-            return;
-        };
-        if hook.is_running() {
-            return;
-        }
-        warn!("Windows hook worker exited — marking input capture unavailable");
-        self.stop_hook();
-        self.orchestrator
-            .lock()
-            .await
-            .set_os_mouse_hook_available(false);
-        self.observable
-            .set_accessibility_and_hook(Hook::has_accessibility(), false);
-    }
-
     /// Fold one watcher event into the agent's state.
     async fn apply_watcher(
         &mut self,
@@ -337,11 +203,6 @@ impl Running {
         inventory_refresh: &InventoryRefresh,
     ) {
         use startup::{Watcher, WatcherEvent};
-
-        // Inventory and foreground-app samples make this a health
-        // reconciliation without another timer in the control-plane loop.
-        #[cfg(target_os = "windows")]
-        self.apply_hook_health().await;
 
         match event {
             WatcherEvent::Inventory(event) => {
@@ -361,10 +222,6 @@ impl Running {
             WatcherEvent::Lost(Watcher::Inventory) => {
                 warn!("inventory watcher channel closed — marking enumeration unavailable");
                 self.orchestrator.lock().await.mark_inventory_unavailable();
-            }
-            WatcherEvent::Lost(Watcher::Camera) => {
-                #[cfg(target_os = "macos")]
-                warn!("camera watcher channel closed — disabling camera automation updates");
             }
             WatcherEvent::Lost(Watcher::Pointer) if openlogi_hook::pointer_context_supported() => {
                 warn!("pointer watcher channel closed — disabling pointer-scoped remaps");
@@ -490,14 +347,10 @@ impl Running {
 
     async fn handle_shutdown_request(&mut self, request: ShutdownRequest) {
         match request {
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
-            ShutdownRequest::TrayQuit { core_guard } => {
-                self.shut_down("tray quit", Some(core_guard)).await;
-            }
             // Uninstalled while running — leave through the same door so the
             // event tap and firmware diversions go with us (#807, #1097).
             ShutdownRequest::Uninstalled => {
-                self.shut_down("the app was uninstalled", None).await;
+                self.shut_down("the app was uninstalled").await;
             }
             ShutdownRequest::Restart { path, retry } => {
                 self.hidpp_watchers
@@ -523,7 +376,6 @@ impl Running {
             WatcherFleet::Running(startup::spawn_hidpp_watchers(&self.shared, &self.inputs));
     }
 
-    #[cfg(all(unix, not(target_os = "macos")))]
     fn restart(&mut self, Replacement { path, retry }: Replacement) {
         let error = crate::binary_watch::replace_process(&path);
         warn!(%error, path = %path.display(), "exec of the updated agent failed — restoring the current image and retrying");
@@ -531,38 +383,11 @@ impl Running {
         let _ = retry.send(());
     }
 
-    #[cfg(target_os = "macos")]
-    fn restart(&mut self, Replacement { path, retry }: Replacement) {
-        if let Err(error) = crate::binary_watch::schedule(&path) {
-            warn!(%error, "could not schedule updated agent relaunch — keeping the current image and retrying");
-            self.restart_hidpp_watchers();
-            let _ = retry.send(());
-            return;
-        }
-        self.exit_after_replacement_teardown("binary update");
-    }
-
-    #[cfg(not(unix))]
-    fn restart(&mut self, _request: Replacement) {
-        self.exit_after_replacement_teardown("binary update");
-    }
-
-    async fn shut_down(
-        &mut self,
-        reason: &str,
-        tray_guard: Option<tokio::sync::oneshot::Sender<()>>,
-    ) -> ! {
+    async fn shut_down(&mut self, reason: &str) -> ! {
         std::mem::replace(&mut self.hidpp_watchers, WatcherFleet::Inactive)
             .stop_for_exit()
             .await;
-        shutdown::release_hook_and_exit(self.hook.take(), &mut self.inputs, reason, tray_guard)
-    }
-
-    /// End after [`Self::complete_replacement`] resolved firmware
-    /// ownership, so a successor starts from native device state.
-    #[cfg(any(target_os = "macos", not(unix)))]
-    fn exit_after_replacement_teardown(&mut self, reason: &str) -> ! {
-        shutdown::release_hook_and_exit(self.hook.take(), &mut self.inputs, reason, None)
+        shutdown::release_hook_and_exit(self.hook.take(), &mut self.inputs, reason)
     }
 }
 
@@ -573,33 +398,4 @@ fn prompt_missing_accessibility(capture_mouse_events: bool) {
     if capture_mouse_events && !Hook::has_accessibility() {
         Hook::prompt_accessibility();
     }
-}
-
-/// Request Input Monitoring before starting the HID inventory on macOS.
-///
-/// The agent (not the GUI) owns every HID++ device open, so it must be the
-/// binary the user authorizes. A newly granted permission requires a process
-/// relaunch before macOS lets the agent open HID devices.
-#[cfg(target_os = "macos")]
-async fn request_input_monitoring_and_schedule_relaunch() -> bool {
-    // Without this, macOS never registers a decision at all:
-    // `IOHIDDeviceOpen` is silently denied, the permission never appears in
-    // System Settings for the user to grant, and no HID++ device is ever
-    // discovered. Wait for the blocking consent dialog before starting the
-    // inventory so it cannot cache the pre-grant access state.
-    if !openlogi_hid::permissions::has_access() {
-        let access_after_prompt = tokio::task::spawn_blocking(|| {
-            openlogi_hid::permissions::request_access();
-            openlogi_hid::permissions::has_access()
-        })
-        .await;
-        match access_after_prompt {
-            Ok(true) => return crate::binary_watch::schedule_after_input_monitoring_grant(),
-            Ok(false) => {}
-            Err(e) => {
-                warn!(error = %e, "Input Monitoring permission request task failed");
-            }
-        }
-    }
-    false
 }

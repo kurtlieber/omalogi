@@ -6,18 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Privacy-permission status and remediation deep links for OpenLogi (macOS TCC, Linux device-file access)."
-# Not publishable to crates.io: depends on the unpublished openlogi-camera path.
+description = "Privacy-permission status and remediation deep links for OpenLogi (Linux device-file access)."
 publish = false
-
-# Reading status never prompts, so this crate stays free of any UI toolkit —
-# whoever owns the resource raises its prompt (see the crate docs).
-[target.'cfg(target_os = "macos")'.dependencies]
-openlogi-camera = { path = "../openlogi-camera" }
-objc2 = { workspace = true }
-objc2-io-kit = { workspace = true, features = ["std", "hidsystem"] }
-opener = { workspace = true }
-tracing = { workspace = true }
 
 # Only for the Logitech vendor ID — `openlogi-core` is pure types, no I/O.
 [target.'cfg(target_os = "linux")'.dependencies]

@@ -5,16 +5,8 @@
 //! [`reconcile`] dispatches to the platform's file, which owns its mechanism,
 //! its logging, and its tests:
 //!
-//! - **macOS** ([`macos`]): migration only. The GUI owns registration via
-//!   `SMAppService` (the API resolves the service plist against the *calling*
-//!   app's bundle, so only the GUI can call it); the agent just removes the
-//!   hand-written legacy `~/Library/LaunchAgents` plists. A hand-edited
-//!   `config.toml` therefore takes effect the next time the GUI runs.
 //! - **Linux** ([`linux`]): a systemd **user** unit, written/removed and
-//!   `systemctl --user` enabled/disabled. `Restart=on-failure` mirrors the
-//!   macOS service's `KeepAlive = {SuccessfulExit: false}` semantics.
-//! - **Windows** ([`windows`]): an `HKCU\…\Run` registry value — login launch
-//!   only, no crash respawn.
+//!   `systemctl --user` enabled/disabled, with `Restart=on-failure`.
 //!
 //! Every arm is idempotent — it writes only when the content differs and
 //! removes only what exists — and failures are logged, never propagated:
@@ -33,10 +25,6 @@ use std::sync::Mutex;
 
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "windows")]
-mod windows;
 
 /// Reconcile the agent's autostart state with `enabled`.
 ///
@@ -59,13 +47,9 @@ fn serialized<T>(f: impl FnOnce() -> T) -> T {
 
 /// The per-platform dispatch, called with the lock held.
 fn reconcile_unlocked(enabled: bool) {
-    #[cfg(target_os = "macos")]
-    macos::reconcile(enabled);
     #[cfg(target_os = "linux")]
     linux::reconcile(enabled);
-    #[cfg(target_os = "windows")]
-    windows::reconcile(enabled);
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    #[cfg(not(target_os = "linux"))]
     {
         if enabled {
             tracing::debug!("launch_at_login set but no autostart backend on this platform");

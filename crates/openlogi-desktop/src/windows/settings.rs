@@ -1,5 +1,5 @@
-//! The Settings window — a standalone OS window (⌘, / menu bar / the right
-//! panel's Configuration card) exposing the app-wide preferences in
+//! The Settings window — a standalone OS window (menu / the right panel's
+//! Configuration card) exposing the app-wide preferences in
 //! [`openlogi_core::config::AppSettings`].
 //!
 //! Uses gpui-component's Settings widget so page navigation, search, and the
@@ -42,9 +42,6 @@ pub(super) use crate::services::assets::sync::{AssetCommand, AssetControl};
 pub(super) use crate::state::{AppState, StateEvent};
 use crate::ui::commit_slider::{CommitSlider, SliderRange};
 pub(super) use crate::ui::theme::{self, Palette};
-#[cfg(target_os = "macos")]
-pub(super) use openlogi_permissions::Permission;
-#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(super) use openlogi_permissions::PermissionStatus;
 
 use crate::windows::{self, AuxWindow};
@@ -52,16 +49,8 @@ use crate::windows::{self, AuxWindow};
 mod about;
 mod appearance;
 mod assets;
-// Event-tap enumeration is a macOS (`CGEventTap`) concept; the Diagnostics page
-// that surfaces it is macOS-only.
-#[cfg(target_os = "macos")]
-mod diagnostics;
 mod general;
 mod language;
-// Windows needs no privacy grants — the WH_MOUSE_LL hook and raw HID access
-// work without one — so there the page would render empty; register it only
-// where it has content. `SettingsPage::index` tracks the shift.
-#[cfg(any(target_os = "macos", target_os = "linux"))]
 mod permissions;
 mod updates;
 
@@ -81,15 +70,7 @@ impl SettingsPage {
         match self {
             Self::General => 0,
             Self::Updates => 1,
-            // One lower on Windows: the Permissions page isn't registered
-            // there (see the `mod permissions` cfg).
-            Self::About => {
-                if cfg!(any(target_os = "macos", target_os = "linux")) {
-                    5
-                } else {
-                    4
-                }
-            }
+            Self::About => 5,
         }
     }
 }
@@ -107,8 +88,6 @@ pub(super) enum ThemeFilter {
 pub struct SettingsView {
     focus_handle: FocusHandle,
     appearance_obs: Option<Subscription>,
-    /// Refreshes host-owned snapshots when Settings becomes active again.
-    _activation_obs: Subscription,
     _state_obs: Subscription,
     /// Refreshes installation metadata when the startup probe completes.
     _installation_obs: Subscription,
@@ -141,17 +120,6 @@ pub struct SettingsView {
     /// re-walking the cache on every render. A snapshot — reopen to refresh
     /// after a Clear.
     asset_cache_desc: SharedString,
-    /// Snapshot of the agent service's registration status, taken when the
-    /// window opens, regains focus, and after every settings change (the status
-    /// read is an XPC round-trip, so it must not run per frame). Drives the
-    /// General page's "switched off in System Settings" notice while keeping
-    /// the render path on this intentional cache.
-    registration_status: crate::platform::registration::ServiceStatus,
-    /// Drives the debug live event monitor: polls the agent on a timer while the
-    /// Settings window is open. Dropping it with the view stops polling, which
-    /// lets the agent's idle janitor turn monitoring back off.
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    _monitor_task: gpui::Task<()>,
 }
 
 impl SettingsView {
@@ -182,15 +150,9 @@ impl SettingsView {
                     | StateEvent::SettingsChanged
                     | StateEvent::LanguageChanged
             ) {
-                // A settings change may have run the opportunistic
-                // registration ensure, so re-read the status snapshot.
-                if matches!(event, StateEvent::SettingsChanged) {
-                    this.refresh_registration_status(cx);
-                }
                 cx.notify();
             }
         });
-        let activation_obs = Self::observe_registration_status(window, cx);
 
         let theme_search =
             cx.new(|cx| InputState::new(window, cx).placeholder(tr!("appearance.filter_themes")));
@@ -220,39 +182,9 @@ impl SettingsView {
         let thumbwheel_sensitivity = Self::thumbwheel_sensitivity_slider(cx);
         let vertical_scroll_sensitivity = Self::vertical_scroll_sensitivity_slider(cx);
 
-        // Poll the agent's live event monitor while this window is open. The task
-        // is held in the view, so closing Settings drops it, polling stops, and
-        // the agent disables monitoring on its own.
-        #[cfg(all(target_os = "macos", debug_assertions))]
-        let monitor_task = cx.spawn(async move |_view, cx| {
-            loop {
-                // Refresh the event-tap snapshot the Diagnostics page reads, so
-                // its per-frame render works off this cache instead of issuing
-                // CGGetEventTapList syscalls on every repaint.
-                let taps = openlogi_hook::Hook::list_event_taps();
-                let sender = cx.update(|cx| AppState::global(cx).read(cx).ipc_sender());
-                let (tx, rx) = tokio::sync::oneshot::channel();
-                let events = if sender
-                    .send(crate::services::ipc::PollEventMonitor { reply: tx }.into())
-                    .is_ok()
-                {
-                    rx.await.unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
-                cx.update(|cx| {
-                    AppState::apply(cx, |state| state.record_monitor_poll(taps, events));
-                });
-                cx.background_executor()
-                    .timer(std::time::Duration::from_millis(300))
-                    .await;
-            }
-        });
-
         Self {
             focus_handle,
             appearance_obs: None,
-            _activation_obs: activation_obs,
             _state_obs: state_obs,
             _installation_obs: installation_obs,
             theme_filter: ThemeFilter::All,
@@ -267,26 +199,7 @@ impl SettingsView {
             copied: false,
             copied_gen: 0,
             asset_cache_desc: assets::cache_size_description(),
-            registration_status: crate::platform::registration::status(),
-            #[cfg(all(target_os = "macos", debug_assertions))]
-            _monitor_task: monitor_task,
         }
-    }
-
-    fn refresh_registration_status(&mut self, cx: &mut Context<Self>) {
-        let status = crate::platform::registration::status();
-        if self.registration_status != status {
-            self.registration_status = status;
-            cx.notify();
-        }
-    }
-
-    fn observe_registration_status(window: &mut Window, cx: &mut Context<Self>) -> Subscription {
-        cx.observe_window_activation(window, |this, window, cx| {
-            if window.is_window_active() {
-                this.refresh_registration_status(cx);
-            }
-        })
     }
 
     /// The thumb-wheel sensitivity slider. The label tracks the live slider
@@ -398,9 +311,7 @@ pub fn open_at(page: SettingsPage, cx: &mut App) {
     windows::open_or_focus(
         |reg| &mut reg.settings,
         window_title(),
-        // Wide enough that the pages' custom rows keep slack under fonts wider
-        // than the macOS system font (Segoe UI tipped the old 840 into
-        // clipping the hero rows' trailing buttons on Windows).
+        // Wide enough that the pages' custom rows keep slack under wider fonts.
         Size::new(px(920.), px(640.)),
         move |window, cx| SettingsView::new(page, window, cx),
         cx,
@@ -430,12 +341,6 @@ impl Render for SettingsView {
         }
         let pal = theme::palette(cx);
         let view = cx.entity();
-        // Only surface the Camera permission when a webcam is actually present,
-        // so people without a Logitech camera are never asked for camera access.
-        // Gated to the platforms that register the permission page below (macOS
-        // consent is the AVFoundation gate; Windows has no such page).
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
-        let has_camera = AppState::try_read(cx).is_some_and(AppState::has_camera);
 
         // Filled group boxes use the theme's content-surface token, keeping
         // settings groups distinct from the page without borrowing a control
@@ -447,19 +352,12 @@ impl Render for SettingsView {
                 page_ix: self.initial_page.index(),
                 group_ix: None,
             })
-            .page(general::general_page(
-                general::SensitivitySliders {
-                    vertical_scroll: self.vertical_scroll_sensitivity.slider().clone(),
-                    thumbwheel: self.thumbwheel_sensitivity.slider().clone(),
-                },
-                self.registration_status,
-            ))
-            .page(updates::updates_page(self.updater.clone()));
-        // Registered only where grants exist to manage — see the `mod
-        // permissions` cfg for why Windows skips it.
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
-        let settings = settings.page(permissions::permissions_page(has_camera));
-        let settings = settings
+            .page(general::general_page(general::SensitivitySliders {
+                vertical_scroll: self.vertical_scroll_sensitivity.slider().clone(),
+                thumbwheel: self.thumbwheel_sensitivity.slider().clone(),
+            }))
+            .page(updates::updates_page(self.updater.clone()))
+            .page(permissions::permissions_page())
             .page(appearance::appearance_page(
                 view.clone(),
                 self.theme_filter,
@@ -472,11 +370,6 @@ impl Render for SettingsView {
                 self.asset_cache_desc.clone(),
             ))
             .page(about::about_page(view, self.copied));
-        // Surfaces competing macOS event taps (a pointer-lag cause) and, in debug
-        // builds, the full tap list and a live event monitor. Appended after
-        // About so [`SettingsPage::index`] stays platform-independent.
-        #[cfg(target_os = "macos")]
-        let settings = settings.page(diagnostics::diagnostics_page());
 
         div()
             .size_full()
@@ -487,20 +380,19 @@ impl Render for SettingsView {
             .on_action(|_: &CloseWindow, window, _| window.remove_window())
             .on_action(|_: &Minimize, window, _| window.minimize_window())
             .on_action(|_: &Zoom, window, _| window.zoom_window())
-            // Linux only: a client-side titlebar as an absolute overlay (with
-            // matching top padding) rather than a flex-column row — the
-            // `Settings` sidebar uses `h_resizable` percentage sizing, which a
-            // flex column would break. macOS / Windows keep their native titlebar.
-            .when(cfg!(target_os = "linux"), |this| {
-                this.pt(TITLE_BAR_HEIGHT).child(
-                    div()
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .right_0()
-                        .child(windows::aux_title_bar(tr!("app.settings"), cx)),
-                )
-            })
+            // A client-side titlebar as an absolute overlay (with matching top
+            // padding) rather than a flex-column row — the `Settings` sidebar
+            // uses `h_resizable` percentage sizing, which a flex column would
+            // break.
+            .pt(TITLE_BAR_HEIGHT)
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .child(windows::aux_title_bar(tr!("app.settings"), cx)),
+            )
             .child(settings)
     }
 }

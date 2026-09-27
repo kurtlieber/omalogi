@@ -31,15 +31,6 @@ pub(crate) fn ensure_file(path: &Path) -> Result<()> {
     }
 }
 
-pub(crate) fn ensure_dir(path: &Path) -> Result<()> {
-    let metadata = fs_err::metadata(path)?;
-    if metadata.is_dir() {
-        Ok(())
-    } else {
-        bail!("missing directory {}", path.display())
-    }
-}
-
 pub(crate) fn absolutize(root: &Path, path: &Path) -> PathBuf {
     path.absolutize_from(root)
         .map_or_else(|_| root.join(path), std::borrow::Cow::into_owned)

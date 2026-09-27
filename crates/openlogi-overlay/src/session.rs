@@ -11,7 +11,7 @@ use anyhow::{Context as _, Result};
 use openlogi_ipc::{Identity, PROTOCOL_VERSION, RUN_ENV};
 use succession::{Allegiance, Compat, Record, Role, Run, Tenancy, Tenant};
 use tokio::sync::mpsc;
-use tracing::warn;
+use tracing::debug;
 
 use crate::platform;
 use crate::ring::RingView;
@@ -71,10 +71,9 @@ pub(crate) const fn click_away_targets(observed: u64, open: u64) -> bool {
 /// transient popup closes on click-away — without swallowing that click.
 ///
 /// The ring window only covers its own 360×360 bounds, so an outside click
-/// never reaches the window's handlers. A global monitor closes the gap:
-/// macOS only delivers it events routed to *other* applications, so clicks on
-/// the ring itself can't race the slot/cancel handlers, and monitors can't
-/// consume events, so the click lands where the user aimed it. The handler
+/// never reaches the window's handlers; a platform global monitor would close
+/// that gap. Linux exposes none today, so [`platform::watch_clicks_outside`]
+/// returns `None` and this task only waits on a channel nothing feeds. The handler
 /// snapshots the showing session onto a channel; teardown runs on the GPUI
 /// side, and only that session is cancelled so a queued click cannot close a
 /// ring that opened afterward.
@@ -85,26 +84,17 @@ pub(crate) fn spawn_click_away_dismissal(cx: &mut gpui::App, live: Arc<ClickAway
             let _ = clicks_tx.send(session_id);
         }
     });
-    if monitor.is_none() && cfg!(target_os = "macos") {
-        warn!(
-            "could not install the click-away monitor; the ring will not dismiss on outside clicks"
-        );
+    if monitor.is_none() {
+        debug!("no global click monitor on this platform — ring dismisses in-window only");
+        return;
     }
     cx.spawn(async move |cx| {
-        #[cfg(target_os = "macos")]
-        let _monitor = monitor;
-        #[cfg(not(target_os = "macos"))]
-        drop_unused_click_away_monitor(monitor);
         while let Some(session_id) = clicks.recv().await {
             cx.update(|cx| dismiss_click_away(cx, session_id));
         }
     })
     .detach();
 }
-
-/// Drop the stub monitor; non-macOS has no native owner to keep alive.
-#[cfg(not(target_os = "macos"))]
-const fn drop_unused_click_away_monitor(_monitor: Option<platform::ClickAwayMonitor>) {}
 
 /// Cancel the open ring only if it is still the session the click named.
 pub(crate) fn dismiss_click_away(cx: &mut gpui::App, session_id: u64) {

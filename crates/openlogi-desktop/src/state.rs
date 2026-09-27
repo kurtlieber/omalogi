@@ -175,11 +175,6 @@ pub struct AppState {
     lights: LightSession,
     /// Sender to the IPC client thread. The agent owns the hook and device I/O.
     ipc_commands: mpsc::UnboundedSender<crate::services::ipc::Command>,
-    /// Camera-consent poll started by an in-app macOS prompt. The app-state
-    /// entity owns it because permission can resolve after the initiating view
-    /// or window closes; dropping the entity at process shutdown cancels it.
-    #[cfg(target_os = "macos")]
-    camera_permission_poll: Option<gpui::Task<()>>,
 }
 
 impl AppState {
@@ -273,8 +268,6 @@ impl AppState {
             pointer: PointerState::default(),
             lights: LightSession::default(),
             ipc_commands,
-            #[cfg(target_os = "macos")]
-            camera_permission_poll: None,
         };
         // Plain `persist_config`, not `persist_and_reload` as
         // `refresh_inventories` uses for the same fold: there is no agent

@@ -6,53 +6,6 @@ use super::events::StateEvents;
 use super::{AppState, StateEvent};
 
 impl AppState {
-    /// Request Camera access and retain the permission poll for the app
-    /// entity's lifetime. Repeated requests reuse an active poll; a completed
-    /// poll may be replaced if authorization is still undetermined.
-    #[cfg(target_os = "macos")]
-    pub(crate) fn request_camera_access(cx: &mut gpui::App) {
-        use std::time::Duration;
-
-        const TICK: Duration = Duration::from_millis(250);
-        const TICKS_MAX: u32 = 2400; // 10 minutes
-
-        openlogi_camera::request_camera_access();
-        Self::update(cx, |state, cx| {
-            if state
-                .camera_permission_poll
-                .as_ref()
-                .is_some_and(|poll| !poll.is_ready())
-            {
-                return;
-            }
-            state.camera_permission_poll = Some(cx.spawn(async move |state, cx| {
-                for _ in 0..TICKS_MAX {
-                    cx.background_executor().timer(TICK).await;
-                    if openlogi_camera::camera_authorization()
-                        != openlogi_camera::CameraAuthorization::Undetermined
-                    {
-                        break;
-                    }
-                }
-                state
-                    .update(cx, |_, cx| cx.emit(StateEvent::CameraPermissionChanged))
-                    .ok();
-            }));
-        });
-    }
-
-    /// Whether any connected device is a webcam. Gates the camera-permission UI
-    /// so it only appears when there is actually a camera to grant access to.
-    /// Only the platforms that register the permission page (macOS/Linux) call
-    /// this; Windows has no such page, so the method is scoped to match.
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
-    #[must_use]
-    pub fn has_camera(&self) -> bool {
-        self.devices
-            .records
-            .iter()
-            .any(|r| matches!(r.kind, openlogi_core::device::DeviceKind::Camera))
-    }
     /// The saved value of a UVC control for `config_key`, if any.
     #[must_use]
     pub fn camera_control(&self, config_key: &str, control: CameraControl) -> Option<i32> {

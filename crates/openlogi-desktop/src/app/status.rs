@@ -137,37 +137,8 @@ pub(super) fn attention_footer(cx: &App) -> impl IntoElement {
         .child(accessibility_status(pal))
 }
 
-/// Accessibility affordance that requests the grant on click (the native
-/// prompt + System Settings, via [`super::request_accessibility`]).
-#[cfg(target_os = "macos")]
-fn accessibility_status(pal: Palette) -> impl IntoElement {
-    // Scoped here rather than at module level: these traits' only user is this
-    // macOS-gated affordance (`.hover()` + `.on_click()`), so an ungated import
-    // would be unused — and a hard error under `-D warnings` — on Linux/Windows.
-    use gpui::InteractiveElement as _;
-    use gpui_base::Button as BaseButton;
-
-    BaseButton::new("footer-accessibility")
-        .accessibility_label(tr!("permissions.accessibility_not_granted_click_to_grant"))
-        .flex()
-        .gap_2()
-        .items_center()
-        .text_caption()
-        .text_color(pal.text_primary)
-        .cursor_pointer()
-        .hover(|style| style.text_color(pal.text_muted))
-        .focus_visible(|style| style.text_color(pal.text_muted))
-        .child(
-            div()
-                .size_1p5()
-                .rounded_full()
-                .bg(rgb(theme::STATUS_CONNECTING)),
-        )
-        .child(div().child(tr!("permissions.accessibility_not_granted_click_to_grant")))
-        .on_click(|_, _, cx| super::request_accessibility(cx))
-}
-
-#[cfg(not(target_os = "macos"))]
+/// Linux grants input access through udev rules, not a consent prompt, so
+/// there is no in-app affordance to offer here.
 fn accessibility_status(_pal: Palette) -> impl IntoElement {
     div()
 }

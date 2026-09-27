@@ -120,12 +120,3 @@ fn replace_stale() -> Option<InstanceGuard> {
     warn!("stale agent did not release the lock — giving up the takeover");
     None
 }
-
-/// No Windows release has ever shipped (or auto-started) the agent, so there
-/// is no pre-watcher population to migrate; from the first shipped build
-/// onward, `binary_watch` exits on update and the GUI's spawn retry starts
-/// the new binary.
-#[cfg(windows)]
-fn replace_stale() -> Option<InstanceGuard> {
-    None
-}

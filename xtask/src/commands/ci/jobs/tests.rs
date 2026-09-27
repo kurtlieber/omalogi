@@ -57,8 +57,7 @@ fn wrapped_commands_join_under_either_line_ending() {
 /// other seven pick their invocation — or whether they can run at all — from
 /// what the machine has: `typos` needs typos-cli and `ast-grep` its binary (CI
 /// runs both through actions), `shell` needs shellcheck and shfmt, `msrv` a
-/// toolchain, `cargo-deny` either the binary or nix, `clippy (windows)` a cross
-/// std, `wasm` the wasm32 std. Each is documented as a proxy
+/// toolchain, `cargo-deny` either the binary or nix, `wasm` the wasm32 std. Each is documented as a proxy
 /// for its CI job rather than a copy of it, and `wasm` gets
 /// [`wasm_checks_the_crates_ci_checks`] instead, which compares the crate list
 /// rather than a plan.
@@ -77,8 +76,6 @@ fn ci_yml_runs_what_this_runner_runs() {
         Job::Clippy,
         Job::Rustdoc,
         Job::TestsLinux,
-        Job::TestsMacos,
-        Job::TestsWindows,
     ] {
         let host = *job.spec().hosts.first().expect("every job names a host");
         let plan = job.plan(&sh, host).expect("a plan");
@@ -169,22 +166,17 @@ fn names_are_unique_across_jobs() {
 #[test]
 fn matrix_leg_names_resolve() {
     // What someone copies out of a CI run's job list.
-    for name in [
-        "MSRV (cargo check, macos-latest)",
-        "MSRV (cargo check, ubuntu-latest)",
-    ] {
-        assert_eq!(Job::resolve(name).as_deref(), Some(&[Job::Msrv][..]));
-    }
-    for name in ["tests (macos, arm64)", "tests (macos, x86_64)"] {
-        assert_eq!(Job::resolve(name).as_deref(), Some(&[Job::TestsMacos][..]));
-    }
+    assert_eq!(
+        Job::resolve("MSRV (cargo check, ubuntu-latest)").as_deref(),
+        Some(&[Job::Msrv][..])
+    );
 }
 
 #[test]
 fn tests_names_every_test_job() {
     assert_eq!(
         Job::resolve("tests").as_deref(),
-        Some(&[Job::TestsLinux, Job::TestsMacos, Job::TestsWindows][..])
+        Some(&[Job::TestsLinux][..])
     );
 }
 
@@ -232,11 +224,5 @@ fn i18n_runs_portable_parity_before_desktop_resolution() {
 fn jobs_name_the_hosts_ci_gives_them() {
     let hosts = |job: Job| job.spec().hosts.to_vec();
     assert_eq!(hosts(Job::TestsLinux), vec![Host::Linux]);
-    assert_eq!(hosts(Job::TestsMacos), vec![Host::Macos]);
-    assert_eq!(hosts(Job::TestsWindows), vec![Host::Windows]);
-    // CI's msrv matrix is macos-latest + ubuntu-latest — there is no
-    // Windows leg to reproduce.
-    assert_eq!(hosts(Job::Msrv), vec![Host::Linux, Host::Macos]);
-    // Natively on Windows, everywhere else as the cross-lint proxy.
-    assert_eq!(hosts(Job::ClippyWindows), Host::ANY.to_vec());
+    assert_eq!(hosts(Job::Msrv), vec![Host::Linux]);
 }

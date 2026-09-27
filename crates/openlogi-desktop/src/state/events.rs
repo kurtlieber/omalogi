@@ -22,9 +22,9 @@ pub(crate) enum StateEvent {
     /// The foreground application or recent-application list changed.
     ForegroundChanged,
     /// Cached diagnostics/event-monitor data changed.
-    #[cfg_attr(
-        not(all(target_os = "macos", debug_assertions)),
-        expect(dead_code, reason = "the live event monitor is macOS debug-only")
+    #[expect(
+        dead_code,
+        reason = "only upstream's macOS event monitor emits it; Settings still listens"
     )]
     DiagnosticsChanged,
     /// The merged device inventory changed.
@@ -43,10 +43,10 @@ pub(crate) enum StateEvent {
     CameraChanged,
     /// Host camera-permission status may have changed.
     #[cfg_attr(
-        not(any(target_os = "macos", test)),
+        not(test),
         expect(
             dead_code,
-            reason = "camera consent polling is macOS-only outside tests"
+            reason = "Linux has no camera consent to poll; tests emit it"
         )
     )]
     CameraPermissionChanged,

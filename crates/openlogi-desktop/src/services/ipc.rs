@@ -58,8 +58,6 @@ use launch::spawn_agent;
 use link::Link;
 use reflex::SpawnReflex;
 use request::LinkLost;
-#[cfg(all(target_os = "macos", debug_assertions))]
-pub use request::PollEventMonitor;
 pub use request::{
     CancelPairing, Command, PairDevice, ReadDpi, ReadSmartShift, ReloadConfig,
     RequestAccessibilityPrompt, SetDpi, SetLight, SetLightManualPower, SetLighting, SetSmartShift,

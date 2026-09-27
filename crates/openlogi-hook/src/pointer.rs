@@ -4,10 +4,6 @@ use crate::ForegroundApp;
 
 #[cfg(target_os = "linux")]
 use crate::linux::pointer as platform;
-#[cfg(target_os = "macos")]
-use crate::macos::pointer as platform;
-#[cfg(target_os = "windows")]
-use crate::windows::pointer as platform;
 
 /// Native window identity under the pointer, or an explicit non-window outcome.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,7 +12,7 @@ pub enum PointerTarget {
     Window {
         /// Native process identifier.
         process_id: i32,
-        /// CGWindowID, HWND, or X11 client-window XID. Not durable across restarts.
+        /// X11 client-window XID. Not durable across restarts.
         window_id: u64,
     },
     /// Positively identified desktop background or desktop icons.
@@ -41,9 +37,7 @@ pub struct PointerContext {
 ///
 /// Blocking window-server / accessibility I/O: call only on a background worker,
 /// never an input hook or event-tap callback. This does not update foreground
-/// caches (including the foreground Safari PID). On macOS the lookup runs on the
-/// main queue, so the process must be running its AppKit loop; otherwise every
-/// call returns [`PointerTarget::Unavailable`] after a short timeout.
+/// caches.
 #[must_use]
 pub fn pointer_context() -> PointerContext {
     if !pointer_context_supported() {
@@ -52,7 +46,7 @@ pub fn pointer_context() -> PointerContext {
             target: PointerTarget::Unsupported,
         };
     }
-    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     if let Some(context) = platform::pointer_context() {
         return context;
     }
@@ -66,9 +60,9 @@ pub fn pointer_context() -> PointerContext {
 /// or connect to the window server. Unsupported Wayland never falls back to X11.
 #[must_use]
 pub fn pointer_context_supported() -> bool {
-    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     return platform::pointer_context_supported();
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    #[cfg(not(target_os = "linux"))]
     false
 }
 
@@ -82,8 +76,8 @@ pub fn pointer_target_is_focused(target: PointerTarget) -> bool {
     if !matches!(target, PointerTarget::Window { .. }) || !pointer_context_supported() {
         return false;
     }
-    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     return platform::pointer_target_is_focused(target);
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    #[cfg(not(target_os = "linux"))]
     false
 }

@@ -26,10 +26,7 @@ pub(crate) enum Job {
     Msrv,
     Rustdoc,
     TestsLinux,
-    TestsMacos,
-    TestsWindows,
     CargoDeny,
-    ClippyWindows,
     Wasm,
     /// Portable locale parity plus the desktop end-to-end key-resolution tests.
     I18n,
@@ -49,8 +46,9 @@ struct Spec {
     name: &'static str,
     /// The other names it answers to: the workflow job id, short forms.
     aliases: &'static [&'static str],
-    /// CI renders the matrix leg into the name (`tests (macos, arm64)`), so a
-    /// name copied out of a run can only match on a prefix.
+    /// CI renders the matrix leg into the name (`MSRV (cargo check,
+    /// ubuntu-latest)`), so a name copied out of a run can only match on a
+    /// prefix.
     prefix: Option<&'static str>,
     /// The hosts that can run this job at all. Anywhere else it is skipped and
     /// the summary names it as not run.
@@ -63,16 +61,7 @@ struct Spec {
 }
 
 /// The names that select more than one job, because `ci.yml` has more than one.
-const GROUPS: [(&str, &[Job]); 2] = [
-    (
-        "tests",
-        &[Job::TestsLinux, Job::TestsMacos, Job::TestsWindows],
-    ),
-    (
-        "test",
-        &[Job::TestsLinux, Job::TestsMacos, Job::TestsWindows],
-    ),
-];
+const GROUPS: [(&str, &[Job]); 2] = [("tests", &[Job::TestsLinux]), ("test", &[Job::TestsLinux])];
 
 fn default_spec(
     name: &'static str,
@@ -131,13 +120,13 @@ impl Job {
             Self::Clippy => default_spec(
                 "clippy",
                 &[],
-                "CI runs it on ubuntu-latest, so it compiles linux cfg. Host clippy on macOS or Windows is a different compilation, not this job.",
+                "CI runs it on ubuntu-latest, so it compiles linux cfg.",
             ),
             Self::Msrv => Spec {
                 name: "MSRV (cargo check)",
                 aliases: &["msrv"],
                 prefix: Some("MSRV (cargo check"),
-                hosts: &[Host::Linux, Host::Macos],
+                hosts: &[Host::Linux],
                 in_default_run: true,
                 caveat: "rust-toolchain.toml pins the channel to stable and rustup honours that over an installed toolchain, so CI and this runner both set RUSTUP_TOOLCHAIN to the rust-version floor — without it the check silently runs stable.",
             },
@@ -154,37 +143,11 @@ impl Job {
                 in_default_run: true,
                 caveat: "Excludes openlogi-desktop, but still runs openlogi-ui's portable locale-parity test. Only the desktop end-to-end key-resolution tests are absent.",
             },
-            Self::TestsMacos => Spec {
-                name: "tests (macos)",
-                aliases: &["test-macos"],
-                prefix: Some("tests (macos"),
-                hosts: &[Host::Macos],
-                in_default_run: true,
-                caveat: "CI's matrix is arm64 (macos-latest) and x86_64 (macos-15-intel); a host only ever covers its own arch.",
-            },
-            Self::TestsWindows => Spec {
-                name: "tests (windows)",
-                aliases: &["test-windows"],
-                prefix: None,
-                hosts: &[Host::Windows],
-                in_default_run: true,
-                caveat: "Excludes openlogi-desktop like the Linux job. Executes the `cfg(windows)` tests, which `clippy (windows)` only compiles and no other host can run.",
-            },
             Self::CargoDeny => default_spec(
                 "cargo-deny",
                 &["deny"],
                 "Rooted at crates/openlogi — exactly the crates published to crates.io. Falls back to `nix run nixpkgs#cargo-deny` when the binary is not installed.",
             ),
-            Self::ClippyWindows => Spec {
-                name: "clippy (windows)",
-                aliases: &["clippy-windows"],
-                prefix: None,
-                // Everywhere: natively on Windows, and elsewhere as the
-                // cross-lint proxy.
-                hosts: Host::ANY,
-                in_default_run: true,
-                caveat: "CI lints the whole workspace natively on windows-latest. Anywhere else this is the ring-free cross lint over the crates that carry Windows code — a proxy, not that job.",
-            },
             Self::Wasm => default_spec(
                 "wasm (portable crates)",
                 &["wasm"],
@@ -193,7 +156,7 @@ impl Job {
             Self::I18n => focused_spec(
                 "i18n",
                 &[],
-                "Portable catalog parity plus desktop end-to-end key resolution. Linux CI runs the first through openlogi-ui; macOS CI runs both.",
+                "Portable catalog parity plus desktop end-to-end key resolution. Linux CI runs the first through openlogi-ui; the desktop half runs only locally.",
             ),
             Self::Wire => focused_spec(
                 "wire_format",

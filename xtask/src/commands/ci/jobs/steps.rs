@@ -11,31 +11,6 @@ use crate::commands::ci::{Host, Step};
 use crate::support::fs::command_exists;
 use crate::support::manifest::workspace_package;
 
-/// The crates carrying `cfg(target_os = "windows")` code that can be linted
-/// from a Unix host, i.e. CI's `clippy (windows)` minus what cannot
-/// cross-compile.
-///
-/// `clippy --target` is check-only (no linker needed), but a C-compiling build
-/// dependency does need a cross C toolchain: `openlogi-{assets,cli}` and the
-/// root `openlogi` pull ureq → ring, whose `curve25519.c` cannot cross-compile
-/// from macOS without mingw. They have no Windows-specific code, so this is the
-/// ring-free agent/leaf subset; CI covers the rest natively. The GUI crates are
-/// out because GPUI has no Windows backend.
-///
-/// A crate missing here is a crate whose Windows paths nothing checks until CI
-/// — which is how three `chunks_exact` sites in `openlogi-camera` survived a
-/// whole lint sweep.
-const WINDOWS_LINT_CRATES: [&str; 8] = [
-    "openlogi-core",
-    "openlogi-hidpp",
-    "openlogi-hid",
-    "openlogi-hook",
-    "openlogi-inject",
-    "openlogi-camera",
-    "openlogi-agent",
-    "openlogi-agent-core",
-];
-
 /// The crates that must keep compiling with no OS underneath them.
 ///
 /// Listed rather than excluded, unlike [`RUSTDOC_EXCLUDES`]: portability is a
@@ -115,26 +90,6 @@ const CARGO_DENY: [Invocation; 2] = [
     },
 ];
 
-/// `cargo-clippy clippy`, not `cargo clippy`: cargo resolves an external
-/// subcommand from `$CARGO_HOME/bin` before PATH, so on a machine with rustup
-/// installed `cargo clippy` runs rustup's clippy against this shell's cargo —
-/// a different compiler, and an outright failure when rustup's toolchain has
-/// no windows-gnu std.
-const WINDOWS_CLIPPY: [Invocation; 2] = [
-    Invocation {
-        probe: "cargo-clippy",
-        program: "cargo-clippy",
-        prefix: &["clippy"],
-        note: None,
-    },
-    Invocation {
-        probe: "cargo",
-        program: "cargo",
-        prefix: &["clippy"],
-        note: Some("cargo-clippy is not on PATH; `cargo clippy` may resolve rustup's"),
-    },
-];
-
 pub(super) fn plan(job: Job, sh: &Shell, host: Host) -> Result<Plan> {
     match job {
         Job::Rustfmt => Ok(Plan::run(
@@ -151,13 +106,11 @@ pub(super) fn plan(job: Job, sh: &Shell, host: Host) -> Result<Plan> {
         Job::Clippy => Ok(clippy(job, host)),
         Job::Msrv => msrv(job, sh, host),
         Job::Rustdoc => Ok(rustdoc(job)),
-        Job::TestsLinux | Job::TestsWindows => Ok(Plan::run(
+        Job::TestsLinux => Ok(Plan::run(
             job,
             [Step::new("cargo").args(["test", "--workspace", "--exclude", "openlogi-desktop"])],
         )),
-        Job::TestsMacos => Ok(tests_macos(job)),
         Job::CargoDeny => Ok(cargo_deny(job)),
-        Job::ClippyWindows => clippy_windows(job, sh, host),
         Job::Wasm => wasm(job, sh),
         Job::I18n => Ok(Plan::run(
             job,
@@ -229,9 +182,6 @@ fn clippy(job: Job, host: Host) -> Plan {
     let plan = Plan::run(job, [Step::new("cargo").args(CLIPPY_ARGS)]);
     match host {
         Host::Linux => plan.note("matches CI job 'clippy' (ubuntu-latest)"),
-        Host::Windows => {
-            plan.note("host Windows clippy; CI's 'clippy' job is ubuntu — also run clippy-windows")
-        }
         _ => plan.note(format!(
             "host {host} clippy. CI's 'clippy' job is ubuntu-latest and compiles linux cfg — this is not that job"
         )),
@@ -298,18 +248,6 @@ fn rustdoc(job: Job) -> Plan {
             .args(excludes)
             .env("RUSTDOCFLAGS", "-D warnings")],
     )
-}
-
-fn tests_macos(job: Job) -> Plan {
-    let arch = std::env::consts::ARCH;
-    Plan::run(
-        job,
-        [Step::new("cargo").args(["test", "--workspace", "--all-targets"])],
-    )
-    .label(format!("tests (macos, {arch})"))
-    .note(format!(
-        "CI also has a macos-15-intel x86_64 leg — this host only covers {arch}"
-    ))
 }
 
 /// The dependency policy, rooted at the CLI: exactly the crates published to
@@ -385,44 +323,4 @@ fn wasm(job: Job, sh: &Shell) -> Result<Plan> {
             ]),
         ],
     ))
-}
-
-fn clippy_windows(job: Job, sh: &Shell, host: Host) -> Result<Plan> {
-    if host == Host::Windows {
-        return Ok(Plan::run(job, [Step::new("cargo").args(CLIPPY_ARGS)]));
-    }
-
-    let sysroot = cmd!(sh, "rustc --print sysroot").quiet().read()?;
-    if !Path::new(sysroot.trim())
-        .join("lib/rustlib/x86_64-pc-windows-gnu")
-        .is_dir()
-    {
-        return Ok(Plan::skip(
-            job,
-            "missing x86_64-pc-windows-gnu std (devenv, or: rustup target add x86_64-pc-windows-gnu)",
-        )
-        .label("clippy (windows) proxy"));
-    }
-
-    let Some(invocation) = first_available(&WINDOWS_CLIPPY) else {
-        return Ok(Plan::skip(job, "no clippy on PATH").label("clippy (windows) proxy"));
-    };
-
-    let crates = WINDOWS_LINT_CRATES
-        .iter()
-        .flat_map(|crate_name| ["-p", crate_name]);
-    let plan = Plan::run(
-        job,
-        [Step::new(invocation.program)
-            .args(invocation.prefix)
-            .args(["--target", "x86_64-pc-windows-gnu"])
-            .args(crates)
-            .args(["--all-targets", "--", "-D", "warnings"])],
-    )
-    .label("clippy (windows) proxy")
-    .note("CI runs the whole workspace on windows-latest; this is the ring-free cross lint, not that job");
-    Ok(match invocation.note {
-        Some(note) => plan.note(note),
-        None => plan,
-    })
 }

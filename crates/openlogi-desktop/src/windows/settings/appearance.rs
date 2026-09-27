@@ -1,8 +1,7 @@
 //! Appearance settings page: mode, theme grid, radius, scale, language.
 
 use super::language::{LanguageOption, language_select_field};
-use gpui::{ElementId, img};
-use openlogi_core::config::AppIcon;
+use gpui::ElementId;
 
 use super::{
     ActiveTheme, App, AppState, Appearance, Axis, Button, ButtonGroup, Entity, FluentBuilder, Hsla,
@@ -11,7 +10,6 @@ use super::{
     StatefulInteractiveElement, Styled, Theme, ThemeColor, ThemeConfig, ThemeFilter, ThemeMode,
     ThemeRegistry, UiScale, div, h_flex, px, rgb, theme, v_flex,
 };
-use crate::platform::app_icon::AppIconExt as _;
 use crate::ui::choice_card::ChoiceCard;
 use crate::ui::components::control_input;
 use crate::ui::theme::Typography as _;
@@ -28,7 +26,7 @@ pub(super) fn appearance_page(
     // Titled groups so the sidebar shows them as sub-items (gpui-component
     // renders a page's groups as nested sidebar entries once there's more than
     // one and each is titled). Item titles stay distinct from their group title.
-    let mut theme_group = SettingGroup::new()
+    let theme_group = SettingGroup::new()
         .title(tr!("appearance.theme"))
         .item(
             SettingItem::new(
@@ -47,19 +45,6 @@ pub(super) fn appearance_page(
             )
             .layout(Axis::Vertical),
         );
-
-    // Only macOS can wear a chosen icon: Windows embeds one into the executable
-    // at build time and Linux installs a fixed one from the package.
-    if cfg!(target_os = "macos") {
-        theme_group = theme_group.item(
-            SettingItem::new(
-                tr!("appearance.app_icon"),
-                SettingField::render(move |_, _, cx| icon_picker(cx)),
-            )
-            .layout(Axis::Vertical)
-            .description(tr!("appearance.app_icon_description")),
-        );
-    }
 
     let theme_group = theme_group
         .item(
@@ -224,64 +209,6 @@ fn mode_card(
                 .child(div().text_body().child(label)),
         )
         .on_click(move |_, _, cx| set_appearance(cx, appearance))
-}
-
-/// The app-icon picker: one card per icon, each showing a render of the
-/// compiled icon rather than its artwork, so the choice looks like what macOS
-/// will draw.
-fn icon_picker(cx: &App) -> gpui::Div {
-    let pal = theme::palette(cx);
-    let current =
-        AppState::try_read(cx).map_or_else(AppIcon::default, |state| state.app_settings().app_icon);
-    let accent = cx.theme().primary;
-    h_flex()
-        .gap_4()
-        .items_start()
-        .children(AppIcon::ALL.map(|icon| icon_card(icon, current == icon, accent, pal)))
-}
-
-/// One icon card: the preview above a radio + label, ringed when it is the icon
-/// the app is wearing.
-fn icon_card(icon: AppIcon, selected: bool, accent: Hsla, pal: Palette) -> impl IntoElement {
-    let preview = icon.preview();
-    ChoiceCard::new(SharedString::from(icon.to_string()), icon_label(icon))
-        .selected(selected)
-        .gap(px(6.))
-        .items_center()
-        .cursor_pointer()
-        .focus_visible(move |style| style.text_color(pal.text_primary))
-        .child(
-            div()
-                .size(px(80.))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded(pal.control_radius)
-                .border_2()
-                .border_color(if selected { accent } else { pal.border })
-                // No preview means a bundle built before this icon existed;
-                // the card stays, empty, rather than shifting the row.
-                .when_some(preview, |this, path| {
-                    this.child(img(path).size(px(64.)))
-                }),
-        )
-        .child(
-            h_flex()
-                .items_center()
-                .gap(px(6.))
-                .child(radio_dot(selected, accent, pal))
-                .child(div().text_body().child(icon_label(icon))),
-        )
-        .on_click(move |_, _, cx| AppState::apply(cx, |state| state.commit_app_icon(icon)))
-}
-
-/// What an icon is called in the picker. Proper nouns, so they are not
-/// translated — the same reasoning as the theme names in the grid above.
-fn icon_label(icon: AppIcon) -> SharedString {
-    match icon {
-        AppIcon::Openlogi => "OpenLogi".into(),
-        AppIcon::Prism => "Prism".into(),
-    }
 }
 
 /// A miniature window-on-desktop at a fixed 100×60, used inside a mode card.

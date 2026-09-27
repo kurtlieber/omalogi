@@ -87,11 +87,8 @@ fn source_is_remappable_policy() {
     assert!(source_is_remappable(Some(&logi_by_name)));
 }
 
-/// On unsupported targets (not macOS, Linux, or Windows), `Hook::start`
-/// returns `Unsupported`. The cfg predates the Windows port (#167) — Windows
-/// belongs with the supported targets below, where this stale form made
-/// `cargo test` fail on every real Windows box.
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+/// Off Linux, `Hook::start` returns `Unsupported`.
+#[cfg(not(target_os = "linux"))]
 #[test]
 fn unsupported_start_returns_unsupported() {
     use std::assert_matches;
@@ -101,10 +98,9 @@ fn unsupported_start_returns_unsupported() {
     assert_matches!(result.err(), Some(HookError::Unsupported));
 }
 
-/// On Linux and Windows, `Hook::start` never returns `Unsupported` — it either
-/// succeeds (`WH_MOUSE_LL` needs no grant on Windows) or returns a
-/// platform-specific error (e.g. `NoDeviceFound` in a headless Linux CI env).
-#[cfg(any(target_os = "linux", target_os = "windows"))]
+/// On Linux, `Hook::start` never returns `Unsupported` — it either succeeds or
+/// returns a platform-specific error (e.g. `NoDeviceFound` in a headless CI env).
+#[cfg(target_os = "linux")]
 #[test]
 fn supported_start_does_not_return_unsupported() {
     let result = Hook::start(|_| EventDisposition::PassThrough);
@@ -118,10 +114,9 @@ fn supported_start_does_not_return_unsupported() {
     }
 }
 
-/// On non-macOS targets, `Hook::has_accessibility` is always `true`.
-#[cfg(not(target_os = "macos"))]
+/// Linux gates input below any privacy layer: `has_accessibility` is `true`.
 #[test]
-fn non_macos_has_accessibility_is_true() {
+fn has_accessibility_is_true() {
     assert!(Hook::has_accessibility());
 }
 

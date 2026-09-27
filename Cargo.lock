@@ -256,17 +256,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "appicon"
-version = "0.1.0"
-source = "git+https://github.com/AprilNEA/appicon?tag=v0.1.1#13f3df01e7efb8a977694ee5a45c4a0e4e96ac2d"
-dependencies = [
- "libc",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -837,15 +826,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "block-buffer"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
-dependencies = [
- "hybrid-array",
-]
-
-[[package]]
 name = "block-padding"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1096,7 +1076,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
- "crypto-common 0.1.7",
+ "crypto-common",
  "inout",
  "zeroize",
 ]
@@ -1293,24 +1273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "const-hex"
-version = "1.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33e2a781ebdf4467d1428dc4593067825fb646f6871475098d8577421af73558"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.2.17",
- "proptest",
- "serde_core",
-]
-
-[[package]]
-name = "const-oid"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
-
-[[package]]
 name = "const-random"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1421,19 +1383,6 @@ name = "core-graphics"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa95a34622365fa5bbf40b20b75dba8dfa8c94c734aea8ac9a5ca38af14316f1"
-dependencies = [
- "bitflags 2.13.1",
- "core-foundation 0.10.0",
- "core-graphics-types 0.2.0",
- "foreign-types",
- "libc",
-]
-
-[[package]]
-name = "core-graphics"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064badf302c3194842cf2c5d61f56cc88e54a759313879cdf03abdd27d0c3b97"
 dependencies = [
  "bitflags 2.13.1",
  "core-foundation 0.10.0",
@@ -1636,15 +1585,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto-common"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
-dependencies = [
- "hybrid-array",
-]
-
-[[package]]
 name = "ctor"
 version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1775,20 +1715,9 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
- "block-buffer 0.10.4",
- "crypto-common 0.1.7",
+ "block-buffer",
+ "crypto-common",
  "subtle",
-]
-
-[[package]]
-name = "digest"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
-dependencies = [
- "block-buffer 0.12.1",
- "const-oid",
- "crypto-common 0.2.2",
 ]
 
 [[package]]
@@ -3384,7 +3313,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "thiserror 2.0.18",
  "tracing",
  "ureq",
@@ -3560,7 +3489,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
 dependencies = [
- "digest 0.10.7",
+ "digest",
 ]
 
 [[package]]
@@ -3638,15 +3567,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a6847b91daf99e3afce87a66f4c8e371776f4567e4e3f9ef48705baaca09795"
 dependencies = [
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "hybrid-array"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9155a582abd142abc056962c29e3ce5ff2ad5469f4246b537ed42c5deba857da"
-dependencies = [
- "typenum",
 ]
 
 [[package]]
@@ -4599,7 +4519,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
 dependencies = [
  "cfg-if",
- "digest 0.10.7",
+ "digest",
 ]
 
 [[package]]
@@ -5147,17 +5067,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-application-services"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69282c2b5bc58fba07cb9de2113619532eb551e98efe3d8d695509ef45fbd53b"
-dependencies = [
- "bitflags 2.13.1",
- "libc",
- "objc2-core-foundation",
-]
-
-[[package]]
 name = "objc2-cloud-kit"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5212,7 +5121,6 @@ checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.13.1",
  "dispatch2",
- "libc",
  "objc2 0.6.4",
  "objc2-core-foundation",
  "objc2-io-surface",
@@ -5382,29 +5290,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-security"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a"
-dependencies = [
- "bitflags 2.13.1",
- "objc2 0.6.4",
- "objc2-core-foundation",
-]
-
-[[package]]
-name = "objc2-service-management"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b213642d6959cc6023ceb1217aa595eaaf09b8094ce95127c103cab611fe65e8"
-dependencies = [
- "objc2 0.6.4",
- "objc2-core-foundation",
- "objc2-foundation 0.3.2",
- "objc2-security",
-]
-
-[[package]]
 name = "objc2-user-notifications"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5470,7 +5355,7 @@ dependencies = [
  "blocking",
  "cbc",
  "cipher",
- "digest 0.10.7",
+ "digest",
  "endi",
  "futures-lite",
  "futures-util",
@@ -5483,7 +5368,7 @@ dependencies = [
  "pbkdf2",
  "serde",
  "serde_bytes",
- "sha2 0.10.9",
+ "sha2",
  "subtle",
  "zbus",
  "zbus_macros",
@@ -5526,14 +5411,8 @@ dependencies = [
 name = "openlogi-agent"
 version = "0.8.9"
 dependencies = [
- "dispatch2",
- "embed-resource",
  "futures",
  "interprocess",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
  "opener",
  "openlogi-agent-core",
  "openlogi-core",
@@ -5552,8 +5431,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "windows-sys 0.61.2",
- "winreg",
  "zbus",
 ]
 
@@ -5580,7 +5457,7 @@ dependencies = [
  "backon",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -5611,16 +5488,11 @@ dependencies = [
 name = "openlogi-camera"
 version = "0.8.9"
 dependencies = [
- "block2 0.6.2",
- "objc2 0.6.4",
- "objc2-core-foundation",
- "objc2-io-kit",
  "openlogi-device-registry",
  "serde",
  "thiserror 2.0.18",
  "tracing",
  "v4l",
- "windows 0.61.3",
  "zune-core 0.5.1",
  "zune-jpeg 0.5.15",
 ]
@@ -5680,10 +5552,8 @@ version = "0.8.9"
 dependencies = [
  "anyhow",
  "appcatalog",
- "appicon",
  "derive_more",
  "disclaim",
- "embed-resource",
  "gpui-base",
  "gpui-component",
  "gpui-kit-assets",
@@ -5691,10 +5561,6 @@ dependencies = [
  "gpui-pre-platform",
  "gpui-updater-pre",
  "image",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "objc2-service-management",
  "opener",
  "openlogi-assets",
  "openlogi-camera",
@@ -5717,7 +5583,6 @@ dependencies = [
  "tracing",
  "url",
  "walkdir",
- "winreg",
 ]
 
 [[package]]
@@ -5809,28 +5674,16 @@ dependencies = [
 name = "openlogi-hook"
 version = "0.8.9"
 dependencies = [
- "block2 0.6.2",
- "core-foundation 0.10.0",
- "core-graphics 0.25.0",
  "ctrlc",
- "dispatch2",
  "evdev",
- "foreign-types-shared",
  "futures-lite",
  "libc",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-application-services",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
  "openlogi-core",
  "openlogi-inject",
  "thiserror 2.0.18",
  "tracing",
  "wayland-client",
  "wayland-protocols-wlr",
- "windows-sys 0.61.2",
  "x11rb",
  "zbus",
 ]
@@ -5839,22 +5692,13 @@ dependencies = [
 name = "openlogi-inject"
 version = "0.8.9"
 dependencies = [
- "core-foundation 0.10.0",
- "core-graphics 0.25.0",
  "evdev",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-application-services",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
  "opener",
  "openlogi-core",
  "serde",
  "shellexpand",
  "tracing",
  "tracing-subscriber",
- "windows-sys 0.61.2",
  "zbus",
 ]
 
@@ -5878,36 +5722,24 @@ name = "openlogi-overlay"
 version = "0.8.9"
 dependencies = [
  "anyhow",
- "block2 0.6.2",
- "core-graphics 0.25.0",
- "embed-resource",
  "gpui-pre",
  "gpui-pre-platform",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
  "openlogi-core",
  "openlogi-hook",
  "openlogi-ipc",
  "openlogi-ui",
- "raw-window-handle",
  "rust-i18n",
  "succession",
  "tarpc",
  "tokio",
  "tracing",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "openlogi-permissions"
 version = "0.8.9"
 dependencies = [
- "objc2 0.6.4",
- "objc2-io-kit",
- "opener",
- "openlogi-camera",
  "openlogi-core",
- "tracing",
 ]
 
 [[package]]
@@ -6064,7 +5896,7 @@ version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
- "digest 0.10.7",
+ "digest",
  "hmac",
 ]
 
@@ -6969,7 +6801,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5bcdef0be6fe7f6fa333b1073c949729274b05f123a0ad7efcb8efd878e5c3b1"
 dependencies = [
  "globset",
- "sha2 0.10.9",
+ "sha2",
  "walkdir",
 ]
 
@@ -7481,28 +7313,7 @@ checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
- "digest 0.10.7",
-]
-
-[[package]]
-name = "sha2"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.3.0",
- "digest 0.11.3",
-]
-
-[[package]]
-name = "sha2_hasher"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d05663bc5e688c3b23804a7810eef3610b4cea009096bc173be478a030f4ba6"
-dependencies = [
- "const-hex",
- "sha2 0.11.0",
+ "digest",
 ]
 
 [[package]]
@@ -10499,20 +10310,14 @@ name = "xtask"
 version = "0.8.9"
 dependencies = [
  "anyhow",
- "appicon",
  "clap",
  "comfy-table",
  "fs-err",
  "openlogi-core",
  "path-absolutize",
- "plist",
  "serde",
  "serde_json",
- "sha2_hasher",
  "strum 0.27.2",
- "sysinfo 0.38.4",
- "tempfile",
- "time",
  "toml 0.8.23",
  "which 8.0.4",
  "xshell",

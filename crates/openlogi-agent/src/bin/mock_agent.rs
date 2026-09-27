@@ -8,11 +8,11 @@
 //! ```sh
 //! cargo run -p openlogi-agent --bin openlogi-agent-mock
 //! cargo run -p openlogi-agent --bin openlogi-agent-mock -- --fixture profile.json
-//! OPENLOGI_DEV_AGENT=0 cargo run -p openlogi-desktop   # in a second terminal
+//! OPENLOGI_PROFILE=dev cargo run -p openlogi-desktop   # in a second terminal
 //! ```
 //!
-//! It defaults to the `openlogi-dev` profile — the one the dev app bundle
-//! already uses — so it meets the dev GUI on the dev socket and the installed
+//! It defaults to the `openlogi-dev` profile — the one `OPENLOGI_PROFILE=dev`
+//! selects — so it meets the dev GUI on the dev socket and the installed
 //! production app is left alone. `OPENLOGI_PROFILE=prod` serves the production
 //! socket instead, where the shared `agent.lock` keeps the mock and a real
 //! agent from running at the same time in either direction.

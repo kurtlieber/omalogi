@@ -1,12 +1,11 @@
 mod commands;
-mod icon;
 mod support;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(about = "OpenLogi repository maintenance tasks")]
+#[command(about = "Omalogi repository maintenance tasks")]
 struct Cli {
     #[command(subcommand)]
     command: Command,

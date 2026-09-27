@@ -179,8 +179,6 @@ impl Render for LightPanel {
                     },
                     pal,
                 ));
-                #[cfg(target_os = "macos")]
-                let panel = panel.child(camera_automation(settings, pal));
                 panel.child(div().h(px(1.)).w_full().bg(pal.border.opacity(0.55)))
             })
             .when_some(brightness, |panel, LightSlider { range, slider }| {
@@ -293,50 +291,6 @@ fn light_emblem(enabled: bool, pal: Palette) -> impl IntoElement {
             }])
         })
         .child(Icon::new(icon).size_7().text_color(icon_color))
-}
-
-#[cfg(target_os = "macos")]
-fn camera_automation(current: LightSettings, pal: Palette) -> impl IntoElement {
-    h_flex()
-        .w_full()
-        .justify_between()
-        .items_center()
-        .gap_3()
-        .rounded(pal.control_radius)
-        .border_1()
-        .border_color(pal.border)
-        .bg(pal.muted)
-        .p_3()
-        .child(
-            v_flex()
-                .gap_1()
-                .flex_1()
-                .min_w_0()
-                .child(
-                    div()
-                        .text_body()
-                        .text_color(pal.text_primary)
-                        .child(tr!("lighting.auto_on_with_camera")),
-                )
-                .child(
-                    div()
-                        .text_caption()
-                        .text_color(pal.text_muted)
-                        .child(tr!("lighting.camera_light_auto_description")),
-                ),
-        )
-        .child(
-            Toggle::new("standalone-light-camera-automation")
-                .selected(current.auto_camera)
-                .min_width(px(72.))
-                .on_change(|auto_camera, _window, cx| {
-                    AppState::apply(cx, |state| {
-                        let mut light = state.light();
-                        light.auto_camera = *auto_camera;
-                        state.commit_light(light)
-                    });
-                }),
-        )
 }
 
 fn light_status(view: LightView, pal: Palette) -> impl IntoElement {

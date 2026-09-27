@@ -13,14 +13,6 @@ use crate::startup::InputServices;
 
 /// A non-signal request for the process lifecycle owner.
 pub(crate) enum ShutdownRequest {
-    /// The user chose Quit from the macOS or Windows tray.
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    TrayQuit {
-        /// Kept alive through graceful teardown. The tray only falls back to
-        /// direct exit if this sender is dropped because the core returned or
-        /// panicked instead of ending the process.
-        core_guard: oneshot::Sender<()>,
-    },
     /// The installed application disappeared from disk.
     Uninstalled,
     /// The executable was replaced and the process should become `path`.
@@ -32,7 +24,7 @@ pub(crate) enum ShutdownRequest {
     },
 }
 
-/// Sender cloned into the tray and executable watcher. Those threads request
+/// Sender cloned into the executable watcher. That thread requests
 /// transitions; the lifecycle remains the sole authority that performs them.
 pub(crate) type ShutdownRequestSender = mpsc::UnboundedSender<ShutdownRequest>;
 
@@ -50,36 +42,6 @@ impl ShutdownRequests {
 pub(crate) fn request_channel() -> (ShutdownRequestSender, ShutdownRequests) {
     let (tx, rx) = mpsc::unbounded_channel();
     (tx, ShutdownRequests(rx))
-}
-
-/// Ask the async lifecycle to quit, then block this tray thread until the
-/// process ends. There is deliberately no elapsed-time fallback: a timer
-/// cannot distinguish a dead core from legitimate firmware restoration and
-/// can preempt the exact cleanup this handoff exists to protect.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(crate) fn request_tray_quit(
-    requests: Option<&ShutdownRequestSender>,
-    fallback_status: i32,
-) -> ! {
-    let (core_guard, core_ended) = oneshot::channel();
-    let sent = requests.is_some_and(|requests| {
-        requests
-            .send(ShutdownRequest::TrayQuit { core_guard })
-            .is_ok()
-    });
-    if sent {
-        // Successful graceful shutdown calls `process::exit`, so this returns
-        // only when unwinding or an early core return drops the guard.
-        let _ = core_ended.blocking_recv();
-        tracing::warn!("agent core ended without exiting after tray Quit — exiting directly");
-    } else {
-        tracing::warn!("no live agent core to accept tray Quit — exiting directly");
-    }
-    #[expect(
-        clippy::exit,
-        reason = "fallback only: a missing or unwound core cannot return a status through an AppKit or win32 tray callback"
-    )]
-    std::process::exit(fallback_status)
 }
 
 /// A future that fires when `signal` does, or never when the handler could not
@@ -126,7 +88,7 @@ impl ShutdownSignals {
     }
 
     /// Resolves on the first signal that means *stop now*: `SIGTERM` from
-    /// launchd or a takeover, `SIGINT` from a dev-run Ctrl-C — both would
+    /// systemd or a takeover, `SIGINT` from a dev-run Ctrl-C — both would
     /// otherwise kill the process with the event tap still armed.
     #[cfg(unix)]
     pub(crate) async fn recv(&mut self) {
@@ -143,14 +105,12 @@ impl ShutdownSignals {
     }
 }
 
-/// Release the input hook, then end the process. The run loop is not the
-/// process — macOS keeps the AppKit tray loop on the main thread — so the
-/// exit has to be explicit, and it must run the hook's destructor.
+/// Release the input hook, then end the process. The exit has to be explicit
+/// so it runs the hook's destructor before the process ends.
 pub(crate) fn release_hook_and_exit(
     hook: Option<Hook>,
     inputs: &mut InputServices,
     reason: &str,
-    _tray_guard: Option<oneshot::Sender<()>>,
 ) -> ! {
     info!(reason, "releasing the input hook and exiting");
     drop(hook);

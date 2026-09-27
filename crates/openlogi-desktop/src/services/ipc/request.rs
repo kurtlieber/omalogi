@@ -384,28 +384,6 @@ impl Request for CancelPairing {
     }
 }
 
-/// Drain the agent's live event-monitor buffer for the debug Diagnostics
-/// monitor. The first poll enables monitoring agent-side; the agent
-/// auto-disables it once polls stop. An unreachable agent has nothing to
-/// drain.
-#[cfg(all(target_os = "macos", debug_assertions))]
-pub struct PollEventMonitor {
-    pub reply: oneshot::Sender<Vec<openlogi_ipc::MonitorEvent>>,
-}
-
-#[cfg(all(target_os = "macos", debug_assertions))]
-impl Request for PollEventMonitor {
-    type Answer = Vec<openlogi_ipc::MonitorEvent>;
-
-    async fn call(&self, client: &AgentClient) -> Result<Self::Answer, RpcError> {
-        client.poll_event_monitor(context::current()).await
-    }
-
-    fn deliver(self, outcome: Result<Self::Answer, Unavailable>, _: &UpdateSender) {
-        let _ = self.reply.send(outcome.unwrap_or_default());
-    }
-}
-
 /// The message from the GPUI thread to the client thread: one variant per
 /// request type, so the state tests can see exactly what was sent. Every
 /// request converts into it with `From`, and running it dispatches to the
@@ -454,8 +432,6 @@ commands! {
     StartPairing,
     PairDevice,
     CancelPairing,
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    PollEventMonitor,
 }
 
 #[cfg(test)]

@@ -22,7 +22,9 @@ use crate::state::AppState;
 
 const MANIFEST_URL: &str = match option_env!("OPENLOGI_UPDATE_MANIFEST_URL") {
     Some(url) => url,
-    None => "https://updates.openlogi.org/channels/stable/latest.json",
+    // Omalogi publishes no signed releases yet; with no minisign key embedded
+    // the check fails closed (see `new_entity`).
+    None => "https://github.com/kurtlieber/omalogi/releases/latest/download/latest.json",
 };
 
 /// Base64 minisign public key, embedded at build time by the release workflow.

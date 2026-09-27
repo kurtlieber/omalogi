@@ -54,14 +54,20 @@ pub(super) fn add_device_button() -> impl IntoElement {
 
 pub(super) fn main_window_title(show_device: bool, cx: &Context<AppView>) -> SharedString {
     if !show_device {
-        return SharedString::from("OpenLogi");
+        return SharedString::from(openlogi_core::brand::APP_NAME);
     }
     AppState::try_global(cx)
         .map(|state| state.read(cx))
         .and_then(AppState::current_record)
         .map_or_else(
-            || SharedString::from("OpenLogi"),
-            |record| SharedString::from(format!("OpenLogi - {}", record.display_name)),
+            || SharedString::from(openlogi_core::brand::APP_NAME),
+            |record| {
+                SharedString::from(format!(
+                    "{} - {}",
+                    openlogi_core::brand::APP_NAME,
+                    record.display_name
+                ))
+            },
         )
 }
 

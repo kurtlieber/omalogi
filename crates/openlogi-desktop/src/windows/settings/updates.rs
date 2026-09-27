@@ -6,7 +6,7 @@ use super::{
     StatefulInteractiveElement as _, Styled, Tag, UpdateStatus, Updater, div, h_flex, img, px,
     v_flex,
 };
-use crate::platform::installation::{HomebrewCask, Installation, InstallationSource, LinuxPackage};
+use crate::platform::installation::{Installation, InstallationSource, LinuxPackage};
 use crate::ui::theme::Typography as _;
 use gpui_base::Link;
 use gpui_component::ActiveTheme as _;
@@ -164,7 +164,7 @@ fn update_hero(updater: &Entity<Updater>, cx: &mut App) -> gpui::Div {
                                 .child(
                                     div()
                                         .font_weight(FontWeight::SEMIBOLD)
-                                        .child(concat!("OpenLogi ", env!("CARGO_PKG_VERSION"))),
+                                        .child(concat!("Omalogi ", env!("CARGO_PKG_VERSION"))),
                                 )
                                 .children(pill.map(|tag| tag.small().rounded_full())),
                         )
@@ -198,17 +198,10 @@ fn installation_label(installation: Installation) -> gpui::SharedString {
     match installation {
         Installation::Detecting => tr!("updates.installation_detecting"),
         Installation::Detected(source) => match source {
-            InstallationSource::Homebrew(HomebrewCask::Official) => "Homebrew (openlogi)".into(),
-            InstallationSource::Homebrew(HomebrewCask::Latest) => {
-                "Homebrew (openlogi@latest)".into()
-            }
             InstallationSource::LinuxPackage(LinuxPackage::Deb) => "DEB (dpkg)".into(),
             InstallationSource::LinuxPackage(LinuxPackage::Rpm) => "RPM".into(),
             InstallationSource::LinuxPackage(LinuxPackage::Arch) => "Arch Linux (pacman)".into(),
             InstallationSource::Nix => "Nix".into(),
-            InstallationSource::WindowsMsi => tr!("updates.installation_windows_msi"),
-            InstallationSource::WindowsPortable => tr!("updates.installation_windows_portable"),
-            InstallationSource::MacAppBundle => tr!("updates.installation_macos_bundle"),
             InstallationSource::Unknown => tr!("updates.installation_unknown"),
         },
     }
@@ -262,14 +255,6 @@ mod tests {
         assert_eq!(installation_label(Installation::Detecting), "Detecting…");
         for (source, expected) in [
             (
-                InstallationSource::Homebrew(HomebrewCask::Official),
-                "Homebrew (openlogi)",
-            ),
-            (
-                InstallationSource::Homebrew(HomebrewCask::Latest),
-                "Homebrew (openlogi@latest)",
-            ),
-            (
                 InstallationSource::LinuxPackage(LinuxPackage::Deb),
                 "DEB (dpkg)",
             ),
@@ -279,9 +264,6 @@ mod tests {
                 "Arch Linux (pacman)",
             ),
             (InstallationSource::Nix, "Nix"),
-            (InstallationSource::WindowsMsi, "Windows installer (MSI)"),
-            (InstallationSource::WindowsPortable, "Portable ZIP"),
-            (InstallationSource::MacAppBundle, "macOS app bundle"),
             (InstallationSource::Unknown, "Not identified"),
         ] {
             assert_eq!(installation_label(Installation::Detected(source)), expected);
@@ -291,10 +273,6 @@ mod tests {
         assert_eq!(
             installation_label(Installation::Detected(InstallationSource::Unknown)),
             "无法识别"
-        );
-        assert_eq!(
-            installation_label(Installation::Detected(InstallationSource::MacAppBundle)),
-            "macOS 应用包"
         );
         rust_i18n::set_locale("en");
     }
@@ -336,7 +314,7 @@ mod tests {
         cx.run_until_parked();
 
         for source in [
-            InstallationSource::Homebrew(HomebrewCask::Latest),
+            InstallationSource::LinuxPackage(LinuxPackage::Arch),
             InstallationSource::Unknown,
         ] {
             notified.set(false);
@@ -351,7 +329,7 @@ mod tests {
         }
 
         for (locale, scale) in [("zh-CN", UiScale::Normal), ("de", UiScale::ExtraLarge)] {
-            cx.update(|cx| cx.set_global(Installation::Detected(InstallationSource::WindowsMsi)));
+            cx.update(|cx| cx.set_global(Installation::Detected(InstallationSource::Unknown)));
             cx.run_until_parked();
             notified.set(false);
             cx.update(|cx| {

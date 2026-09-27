@@ -1,13 +1,11 @@
 //! Application menus and actions.
 //!
-//! GPUI's menu support is driven by registered actions + a `Keymap`: the
-//! platform layer reads bindings via `cx.set_menus` and stamps the matching
-//! `keyEquivalent` onto each `NSMenuItem`. App-level actions (Hide, Quit)
-//! get global listeners; window-level actions (Close, Minimize, Zoom) are
-//! attached to window root views.
+//! GPUI's menu support is driven by registered actions + a `Keymap`.
+//! App-level actions (Quit) get global listeners; window-level actions
+//! (Close, Minimize, Zoom) are attached to window root views.
 //!
-//! On Linux/Windows the menus + key bindings are stored but never surfaced
-//! in a top-of-screen bar — calling `install` there is a harmless no-op.
+//! On Linux the menus are stored but never surfaced in a top-of-screen bar;
+//! the key bindings still apply.
 
 use gpui::{App, KeyBinding, Menu, MenuItem, OsAction, actions};
 use openlogi_core::brand::{HELP_URL, RELEASES_URL, REPO_URL};
@@ -28,10 +26,6 @@ actions!(
         BringAllToFront,
         /// Check for an application update.
         CheckForUpdates,
-        /// Hide the OpenLogi window (macOS).
-        Hide,
-        /// Hide every other application (macOS).
-        HideOthers,
         /// Minimize the active window.
         Minimize,
         /// Return from device details to the device gallery.
@@ -52,8 +46,6 @@ actions!(
         OpenSettings,
         /// Quit the application.
         Quit,
-        /// Reveal every hidden application (macOS).
-        ShowAll,
         /// Zoom (maximize) the active window.
         Zoom,
     ]
@@ -61,12 +53,6 @@ actions!(
 
 /// Wire global action handlers, key equivalents, and publish the menu bar.
 pub fn install(cx: &mut App) {
-    #[cfg(target_os = "macos")]
-    {
-        cx.on_action(|_: &Hide, cx| cx.hide());
-        cx.on_action(|_: &HideOthers, cx| cx.hide_other_apps());
-        cx.on_action(|_: &ShowAll, cx| cx.unhide_other_apps());
-    }
     cx.on_action(|_: &Quit, cx| cx.quit());
     // Fallback for future windows that forget to attach a view-level
     // CloseWindow handler. Existing window roots handle this directly so the
@@ -102,10 +88,6 @@ pub fn install(cx: &mut App) {
         KeyBinding::new("cmd-c", gpui_component::input::Copy, None),
         KeyBinding::new("cmd-v", gpui_component::input::Paste, None),
         KeyBinding::new("cmd-a", gpui_component::input::SelectAll, None),
-        #[cfg(target_os = "macos")]
-        KeyBinding::new("cmd-h", Hide, None),
-        #[cfg(target_os = "macos")]
-        KeyBinding::new("cmd-alt-h", HideOthers, None),
         KeyBinding::new("cmd-m", Minimize, None),
         KeyBinding::new("cmd-w", CloseWindow, None),
         KeyBinding::new("cmd-,", OpenSettings, None),
@@ -135,27 +117,13 @@ fn menus(cx: &App) -> Vec<Menu> {
     vec![
         Menu {
             // The app menu's name is the product name, not a translatable string.
-            name: "OpenLogi".into(),
+            name: openlogi_core::brand::APP_NAME.into(),
             disabled: false,
             items: vec![
                 MenuItem::action(tr!("about.about_openlogi"), OpenAbout),
                 MenuItem::action(tr!("updates.check_for_updates_dialog"), CheckForUpdates),
                 MenuItem::separator(),
                 MenuItem::action(tr!("app.settings_dialog"), OpenSettings),
-                #[cfg(target_os = "macos")]
-                MenuItem::separator(),
-                #[cfg(target_os = "macos")]
-                MenuItem::os_submenu("Services", gpui::SystemMenuType::Services),
-                #[cfg(target_os = "macos")]
-                MenuItem::separator(),
-                #[cfg(target_os = "macos")]
-                MenuItem::action(tr!("app.hide_openlogi"), Hide),
-                #[cfg(target_os = "macos")]
-                MenuItem::action(tr!("app.hide_others"), HideOthers),
-                #[cfg(target_os = "macos")]
-                MenuItem::action(tr!("common.show_all"), ShowAll),
-                #[cfg(target_os = "macos")]
-                MenuItem::separator(),
                 MenuItem::action(tr!("app.quit_openlogi"), Quit),
             ],
         },

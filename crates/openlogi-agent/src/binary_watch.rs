@@ -1,24 +1,22 @@
 //! Restart the agent when its on-disk executable is replaced — and stop it when
 //! that executable goes away for good.
 //!
-//! An app update (Homebrew cask, the in-app updater, a dev rebuild) swaps the
-//! bundle on disk while the old agent keeps running. launchd only restarts the
-//! process when it *exits*, so nothing would pick up the new binary until the
-//! next login — and a GUI launched from the new bundle refuses the old agent's
-//! IPC protocol on a version bump, sitting on its connecting screen with no way
-//! forward. Watching our own executable and replacing the process image once it
-//! changes keeps "the running agent is the installed binary" true within a few
-//! ticks, with no launchd or GUI involvement. How a restart is actually carried
-//! out differs per OS and lives in [`relaunch`].
+//! A package upgrade (pacman, a dev rebuild) swaps the binary on disk while the
+//! old agent keeps running. systemd only restarts the process when it *exits*,
+//! so nothing would pick up the new binary until the next login — and a GUI
+//! launched from the new binary refuses the old agent's IPC protocol on a
+//! version bump, sitting on its connecting screen with no way forward. Watching
+//! our own executable and replacing the process image once it changes keeps
+//! "the running agent is the installed binary" true within a few ticks, with no
+//! systemd or GUI involvement. The restart itself lives in [`relaunch`].
 //!
-//! The same stat answers the uninstall question. Dragging the app to the Trash
-//! does not stop the agent: it keeps running from the trashed bundle with its
-//! macOS event tap armed, which is the worst possible moment to hold one — the
-//! user is about to revoke the permissions it depends on (#674, #807). Absence
+//! The same stat answers the uninstall question. Removing the package does not
+//! stop the agent: it keeps running with its input grab armed and firmware
+//! diversions held (#674, #807). Absence
 //! is ambiguous for one tick (every replace unlinks before it writes), so it
 //! only means "uninstalled" once it has held for [`MISSING_TICKS_UNTIL_GONE`]
 //! ticks, and then the agent shuts down through its normal path, which drops
-//! the hook and detaches the tap.
+//! the hook.
 //!
 //! Limitation: the path is resolved once via `current_exe`, which returns the
 //! fully-resolved target (`/proc/self/exe` on Linux). Installs that update by
@@ -34,10 +32,7 @@ use tracing::{info, warn};
 
 mod relaunch;
 
-#[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) use relaunch::replace_process;
-#[cfg(target_os = "macos")]
-pub(crate) use relaunch::{schedule, schedule_after_input_monitoring_grant};
 
 use crate::shutdown::{ShutdownRequest, ShutdownRequestSender};
 

@@ -19,8 +19,6 @@ use openlogi_agent_core::runtime::{ActionDispatcher, ActionRuntime};
 use openlogi_agent_core::watchers::shutdown::{StopOutcome, WatcherHandle};
 use openlogi_agent_core::watchers::{self, gesture::GestureOutputs};
 use openlogi_core::config::Config;
-#[cfg(target_os = "macos")]
-use openlogi_hook::Hook;
 use tokio::sync::Mutex;
 use tracing::warn;
 
@@ -51,8 +49,6 @@ pub(crate) async fn bootstrap(config: Config) -> Option<Core> {
     // select loop, so it lives behind an async mutex; locks are brief. The
     // hook facts are published by the select loop, which owns the hook.
     let observable = Arc::new(ObservableState::new(env!("CARGO_PKG_VERSION").to_string()));
-    #[cfg(target_os = "macos")]
-    seed_permission_facts(&observable);
     let orchestrator = Arc::new(Mutex::new(Orchestrator::new(
         config,
         Arc::clone(&observable),
@@ -314,13 +310,4 @@ pub(crate) fn spawn_state_watchers(
         ),
     ]);
     (streams, inventory.refresh)
-}
-
-/// Seed the permission facts with non-prompting reads, so a client that
-/// connects before the watchers' first tick doesn't see a default. No hook is
-/// installed this early — arming is what may install one.
-#[cfg(target_os = "macos")]
-fn seed_permission_facts(observable: &ObservableState) {
-    observable.set_accessibility_and_hook(Hook::has_accessibility(), false);
-    observable.set_input_monitoring_granted(openlogi_hid::permissions::has_access());
 }

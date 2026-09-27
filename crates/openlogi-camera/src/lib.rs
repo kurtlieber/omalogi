@@ -7,10 +7,8 @@
 //! id (`0x046d`) rather than any per-model quirk — plug in *any* Logitech
 //! camera and it's recognised, with no model table to maintain.
 //!
-//! macOS has the full backend (AVFoundation capture + IOKit UVC controls);
-//! Windows matches it with Media Foundation capture and DirectShow controls;
-//! Linux uses V4L2 for both, through the kernel's `uvcvideo` driver. Other
-//! platforms return an empty list.
+//! Linux uses V4L2 for both capture and UVC controls, through the kernel's
+//! `uvcvideo` driver. Other platforms return an empty list.
 
 use serde::Serialize;
 
@@ -19,42 +17,6 @@ pub use controls::{AutoState, AutoToggle, CameraControl, CameraState, ControlErr
 
 mod capture_types;
 pub use capture_types::{CaptureError, Frame};
-
-#[cfg(target_os = "macos")]
-mod macos;
-
-#[cfg(target_os = "macos")]
-mod capture_macos;
-#[cfg(target_os = "macos")]
-pub use capture_macos::{
-    CameraStream, camera_access_granted, camera_authorization, capture_frame,
-    request_camera_access, start_stream,
-};
-
-#[cfg(target_os = "windows")]
-mod com_windows;
-
-#[cfg(target_os = "windows")]
-mod capture_windows;
-#[cfg(target_os = "windows")]
-pub use capture_windows::{
-    CameraStream, camera_access_granted, camera_authorization, capture_frame,
-    request_camera_access, start_stream,
-};
-
-#[cfg(target_os = "macos")]
-mod uvc_macos;
-#[cfg(target_os = "macos")]
-pub use uvc_macos::{
-    apply_settings, control_range, control_ranges, read_camera_state, set_auto, set_control,
-};
-
-#[cfg(target_os = "windows")]
-mod uvc_windows;
-#[cfg(target_os = "windows")]
-pub use uvc_windows::{
-    apply_settings, control_range, control_ranges, read_camera_state, set_auto, set_control,
-};
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -74,7 +36,7 @@ pub use uvc_linux::{
     apply_settings, control_range, control_ranges, read_camera_state, set_auto, set_control,
 };
 
-#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 mod capture {
     //! Stub capture backend for platforms without one.
     use std::sync::Arc;
@@ -127,13 +89,13 @@ mod capture {
     /// Stub: no consent prompt exists on this platform.
     pub fn request_camera_access() {}
 }
-#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 pub use capture::{
     CameraStream, camera_access_granted, camera_authorization, capture_frame,
     request_camera_access, start_stream,
 };
 
-#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 mod uvc {
     //! Stub UVC control backend for platforms without one.
     use crate::controls::{AutoToggle, CameraControl, CameraState, ControlError, ControlRange};
@@ -172,7 +134,7 @@ mod uvc {
         Err(ControlError::Unsupported)
     }
 }
-#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 pub use uvc::{
     apply_settings, control_range, control_ranges, read_camera_state, set_auto, set_control,
 };
@@ -252,21 +214,8 @@ impl Camera {
 /// Enumeration and UVC controls can be supported without it.
 #[must_use]
 pub const fn capture_supported() -> bool {
-    cfg!(any(
-        target_os = "macos",
-        target_os = "windows",
-        target_os = "linux"
-    ))
+    cfg!(target_os = "linux")
 }
-
-/// Serializes UVC device seizes against enumeration within this process.
-/// `USBDeviceOpenSeize` briefly detaches the camera's kernel driver, and an
-/// enumeration racing that window sees no camera at all — which read as the
-/// camera "disappearing" from the device list mid-slider-drag once
-/// enumeration moved off the UI thread. Control paths hold this for the
-/// seize's lifetime; enumeration takes it for the duration of the scan.
-#[cfg(target_os = "macos")]
-pub(crate) static USB_QUIESCE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Enumerate every connected **Logitech** UVC camera.
 ///
@@ -281,131 +230,19 @@ pub fn enumerate_cameras() -> Vec<Camera> {
         .collect()
 }
 
-#[cfg(target_os = "macos")]
-fn enumerate_all() -> Vec<Camera> {
-    // Wait out any in-flight control seize so the scan can't land in the
-    // window where the kernel driver is detached (poisoning is impossible —
-    // holders never panic — but recover anyway rather than unwrap).
-    let _quiesce = USB_QUIESCE
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let serials = uvc_macos::usb_serials_by_location();
-    macos::enumerate()
-        .iter()
-        .filter_map(|raw| {
-            let mut camera = Camera::from_raw(&raw.name, &raw.unique_id, &raw.model_id)?;
-            if raw.max_width > 0 && raw.max_height > 0 {
-                camera.max_resolution = Some((raw.max_width, raw.max_height));
-            }
-            if raw.max_fps > 0 {
-                camera.max_fps = Some(raw.max_fps);
-            }
-            if let Some(location) = uvc_macos::location_hint(&raw.unique_id) {
-                camera.serial_number = serials.get(&location).cloned();
-            }
-            Some(camera)
-        })
-        .collect()
-}
-
-#[cfg(target_os = "windows")]
-fn enumerate_all() -> Vec<Camera> {
-    uvc_windows::enumerate()
-}
-
 #[cfg(target_os = "linux")]
 fn enumerate_all() -> Vec<Camera> {
     linux::nodes().iter().map(linux::describe).collect()
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+#[cfg(not(target_os = "linux"))]
 fn enumerate_all() -> Vec<Camera> {
     Vec::new()
-}
-
-#[cfg(any(test, target_os = "macos"))]
-impl Camera {
-    /// Build a [`Camera`] from an OS-reported `(name, unique_id, model_id)`.
-    ///
-    /// Returns `None` when `model_id` carries no USB vendor/product id — i.e.
-    /// it isn't a real USB camera (the macOS FaceTime camera's modelID is just
-    /// `"FaceTime HD Camera"`), so it can't be attributed to a vendor and is
-    /// dropped before the Logitech filter even runs. Format fields start `None`;
-    /// the platform backend fills them in.
-    fn from_raw(name: &str, unique_id: &str, model_id: &str) -> Option<Self> {
-        let (vendor_id, product_id) = parse_vid_pid(model_id)?;
-        Some(Self {
-            name: name.to_string(),
-            unique_id: unique_id.to_string(),
-            serial_number: None,
-            vendor_id,
-            product_id,
-            max_resolution: None,
-            max_fps: None,
-        })
-    }
-}
-
-/// Pull the USB vendor/product id out of an `AVCaptureDevice` modelID such as
-/// `"UVC Camera VendorID_1133 ProductID_2195"`. Both ids are **decimal** in
-/// that string (1133 == 0x046d, 2195 == 0x0893). `None` if either marker is
-/// absent.
-#[cfg(any(test, target_os = "macos"))]
-fn parse_vid_pid(model_id: &str) -> Option<(u16, u16)> {
-    let vendor_id = parse_marker(model_id, "VendorID_")?;
-    let product_id = parse_marker(model_id, "ProductID_")?;
-    Some((vendor_id, product_id))
-}
-
-/// Read the decimal number immediately following `marker` in `haystack`.
-#[cfg(any(test, target_os = "macos"))]
-fn parse_marker(haystack: &str, marker: &str) -> Option<u16> {
-    let rest = haystack.split(marker).nth(1)?;
-    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
-    digits.parse().ok()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parses_logitech_streamcam_model_id() {
-        assert_eq!(
-            parse_vid_pid("UVC Camera VendorID_1133 ProductID_2195"),
-            Some((0x046d, 0x0893))
-        );
-    }
-
-    #[test]
-    fn rejects_model_id_without_usb_ids() {
-        assert_eq!(parse_vid_pid("FaceTime HD Camera"), None);
-        assert_eq!(parse_vid_pid("VendorID_1133 only"), None);
-    }
-
-    #[test]
-    fn from_raw_keeps_usb_cameras_and_drops_the_rest() {
-        assert_eq!(
-            Camera::from_raw(
-                "Logitech StreamCam",
-                "0x1123000046d0893",
-                "UVC Camera VendorID_1133 ProductID_2195",
-            ),
-            Some(Camera {
-                name: "Logitech StreamCam".to_string(),
-                unique_id: "0x1123000046d0893".to_string(),
-                serial_number: None,
-                vendor_id: LOGITECH_VID,
-                product_id: 0x0893,
-                max_resolution: None,
-                max_fps: None,
-            })
-        );
-        assert_eq!(
-            Camera::from_raw("FaceTime HD Camera", "uuid", "FaceTime HD Camera"),
-            None
-        );
-    }
 
     #[test]
     fn config_key_prefers_usb_serial_over_capture_id() {

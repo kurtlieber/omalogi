@@ -129,10 +129,7 @@ jobs:
   # The floor tracks current stable (see `rust-version` in the root Cargo.toml),
   # so what this job buys is keeping that number honest: it fails the moment
   # someone reaches for an API newer than what `cargo install` users are
-  # promised, which the floating-stable jobs above cannot notice. Both
-  # first-class platforms, because macOS and Linux compile disjoint cfg-gated
-  # code (evdev/zbus vs the ObjC surface) and a single runner would miss a
-  # too-new stabilization on the other side.
+  # promised, which the floating-stable jobs above cannot notice.
   msrv:
     name: MSRV (cargo check, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -146,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.98
@@ -156,12 +153,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v2-cargo
-          # Host OS splits Linux vs macOS; the rustc version is already in the key.
+          # The rustc version is already in the key.
           shared-key: msrv-debug
           cache-targets: false
           save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
-      - if: runner.os == 'Linux'
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install -y \
             libudev-dev \
@@ -171,8 +167,8 @@ jobs:
       - run: cargo check --workspace --all-targets
 
   # Stable Linux typecheck is covered by `clippy` above (clippy subsumes
-  # `cargo check` for the same --workspace --all-targets set — same rationale
-  # as clippy-windows). The declared floor stays on the `msrv` matrix.
+  # `cargo check` for the same --workspace --all-targets set). The declared
+  # floor stays on the `msrv` job.
 
   docs:
     name: rustdoc (non-GUI crates)
@@ -210,11 +206,8 @@ jobs:
             --exclude openlogi-overlay \
             --exclude openlogi-agent
 
-  # openlogi-core / openlogi-hid / openlogi-assets / openlogi / openlogi-hook
-  # all compile on Linux today (the hook crate has stubs for non-macOS targets).
-  # openlogi-desktop needs GPUI's wayland / x11 system libs; the same dependency set
-  # the clippy job installs is sufficient. Test workspace there as well so the
-  # config-roundtrip and binding suites run on a non-macOS host.
+  # openlogi-desktop is excluded here, as upstream's Linux job does; its suites
+  # run under a local `cargo test --workspace`.
   test-linux:
     name: tests (linux)
     runs-on: ubuntu-latest
@@ -239,54 +232,6 @@ jobs:
             libssl-dev libzstd-dev pkg-config
       - run: cargo test --workspace --exclude openlogi-desktop
 
-  test-macos:
-    name: tests (macos, ${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: arm64
-            runner: macos-latest
-          - arch: x86_64
-            runner: macos-15-intel
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-        with:
-          version: "v0.16.0"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: v2-cargo
-          # Host triple already splits arm64 vs x86_64 in the final cache key.
-          shared-key: macos-stable-debug
-          cache-targets: false
-          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
-      - name: Verify runner architecture
-        run: test "$(uname -m)" = "${{ matrix.arch }}"
-      - run: cargo test --workspace --all-targets
-
-  # Runs the workspace's tests on Windows — including the `cfg(windows)` ones,
-  # which `clippy (windows)` only compiles and no other host can execute. The
-  # same shape as the Linux job: everything but the desktop crate.
-  test-windows:
-    name: tests (windows)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-        with:
-          version: "v0.16.0"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: v2-cargo
-          shared-key: windows-stable-debug
-          cache-targets: false
-          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
-      - run: cargo test --workspace --exclude openlogi-desktop
-
   cargo-deny:
     name: cargo-deny
     runs-on: ubuntu-latest
@@ -309,31 +254,6 @@ jobs:
       # the graph and the policy in `.cargo/deny.toml` no longer holds. Widening
       # the scope to the app crates is tracked separately — see that file.
       - run: cargo deny --config .cargo/deny.toml --all-features --manifest-path crates/openlogi/Cargo.toml check
-
-  clippy-windows:
-    name: clippy (windows)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-        with:
-          version: "v0.16.0"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: v2-cargo
-          shared-key: windows-stable-debug
-          cache-targets: false
-          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
-      # Whole workspace, matching the Linux jobs — GPUI's DirectX backend
-      # covers the GUI on Windows. clippy subsumes `cargo check` and
-      # additionally lints the Windows-only code paths (the WH_MOUSE_LL hook,
-      # SendInput synthesis, native HID writer, the composite HID++ channel,
-      # and the agent's HKCU-Run autostart) that the Linux/macOS clippy jobs
-      # never compile.
-      - run: cargo clippy --workspace --all-targets -- -D warnings
 
   wasm:
     name: wasm (portable crates)

@@ -42,31 +42,8 @@ opener = { workspace = true }
 succession = { version = "0.2", features = ["supervision", "eviction"] }
 tracing-appender = "0.2.5"
 
-# Held at the version Cargo.lock already has for gpui's own build-dependency;
-# bumping it independently would move the pinned gpui rev.
-[build-dependencies]
-embed-resource = "3.0.9"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-dispatch2 = { workspace = true }
-objc2 = { workspace = true }
-objc2-app-kit = { workspace = true, features = ["NSStatusBar", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSResponder", "NSView", "NSMenu", "NSMenuItem", "NSImage", "NSApplication", "NSRunningApplication", "NSWorkspace"] }
-objc2-core-graphics = { workspace = true, features = ["CGDirectDisplay", "CGDisplayConfiguration", "libc"] }
-objc2-foundation = { workspace = true, features = ["NSString", "NSData", "NSArray", "NSNotification"] }
-
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "5"
-
-[target.'cfg(target_os = "windows")'.dependencies]
-winreg = "0.55"
-windows-sys = { workspace = true, features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Gdi",
-    "Win32_System_LibraryLoader",
-    "Win32_System_Power",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-] }
 
 [lints]
 workspace = true

@@ -1,17 +1,10 @@
-//! OpenLogi's desktop app: process bootstrap.
+//! Omalogi's desktop app: process bootstrap.
 //!
 //! Only the order the process has to start in lives here — logging, the
 //! single-instance guard, config, the UI locale, then the IPC client to the
 //! agent that owns every device. Everything past the GPUI `run` call belongs
 //! to [`runtime`], which owns the event loop and the state outliving any one
 //! event, and to [`windows`], which owns the windows themselves.
-
-// Without this Windows runs the exe as a console app and pops a terminal
-// window behind the UI. Debug builds keep the console so logs stay visible.
-#![cfg_attr(
-    all(target_os = "windows", not(debug_assertions)),
-    windows_subsystem = "windows"
-)]
 
 /// Translate into a [`gpui::SharedString`]; declared here for crate-wide scope.
 macro_rules! tr {
@@ -45,7 +38,6 @@ use openlogi_core::brand::DeeplinkCommand;
 use openlogi_core::config::{Config, ConfigFile};
 use tracing::{info, warn};
 
-use crate::platform::app_icon::AppIconExt as _;
 use crate::services::assets::sync::{AssetCommand, AssetControl};
 use crate::services::{i18n, ipc};
 use crate::state::ConfigPersistence;
@@ -143,13 +135,9 @@ fn main() -> Result<()> {
         platform::updater::install(cx, &initial_config.app_settings);
         platform::installation::install(cx);
 
-        // Wear the icon the user picked. An update replaces the bundle and
-        // takes the icon with it, so this is a repair as much as a restore.
-        initial_config.app_settings.app_icon.restore();
-
         // On-demand GUI: quit when the last window closes. The agent stays
-        // resident and keeps remapping (and hosts the menu-bar item from which
-        // the GUI is reopened), so nothing needs the GUI process to linger.
+        // resident and keeps remapping, so nothing needs the GUI process to
+        // linger.
         cx.on_window_closed(|cx, _| {
             if cx.windows().is_empty() {
                 cx.quit();

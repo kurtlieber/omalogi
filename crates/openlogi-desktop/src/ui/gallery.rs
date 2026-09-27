@@ -25,7 +25,7 @@ use super::commit_slider::{CommitSlider, SliderRange};
 use super::components::{MenuRow, PanelCard, PresetChip, ProfileTab, Toggle};
 use super::theme::{self, ContentWidth, OPENLOGI_DARK, OPENLOGI_LIGHT, Palette, Typography as _};
 
-const TITLE: &str = "OpenLogi Component Gallery";
+const TITLE: &str = "Omalogi Component Gallery";
 
 /// Run the isolated development gallery application.
 pub(crate) fn run() {

@@ -47,7 +47,7 @@ impl AuxWindow for UpdateConsentView {
 pub fn open(cx: &mut App) {
     windows::open_or_focus(
         |reg| &mut reg.update_consent,
-        "OpenLogi",
+        openlogi_core::brand::APP_NAME,
         Size::new(px(380.), px(320.)),
         UpdateConsentView::new,
         cx,

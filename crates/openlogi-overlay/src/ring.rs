@@ -4,7 +4,6 @@
 //! clamped to the display it came up on, so a ring raised near a screen edge
 //! stays whole instead of being cut off.
 
-#[cfg(any(not(target_os = "windows"), test))]
 use gpui::{Bounds, Pixels, Point, Size, point};
 use gpui::{
     Context, Hsla, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
@@ -241,7 +240,6 @@ pub(crate) fn ring_window_options() -> WindowOptions {
     }
 }
 
-#[cfg(any(not(target_os = "windows"), test))]
 pub(crate) fn clamp_window_origin(
     desired: Point<Pixels>,
     window_size: Size<Pixels>,

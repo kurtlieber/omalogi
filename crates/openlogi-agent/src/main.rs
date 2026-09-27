@@ -1,19 +1,9 @@
-//! OpenLogi background agent — headless, always-on.
+//! Omalogi background agent — headless, always-on.
 //!
-//! Owns the CGEventTap hook and the HID++ device path (gesture capture, DPI,
-//! SmartShift), serves the GUI over a Unix-socket tarpc IPC, reconciles its own
-//! launchd autostart, and (macOS) hosts the menu-bar status item. The async
-//! core walks the state machine in `lifecycle` on a tokio runtime; on macOS
-//! the process main thread hosts the AppKit run loop the menu bar requires.
-
-// Without this Windows runs the exe as a console app and pops a terminal
-// window whenever the GUI's sibling spawn or the Run-key autostart starts the
-// agent — "headless" must mean no window of any kind. Debug builds keep the
-// console so logs stay visible (matching the GUI's arrangement).
-#![cfg_attr(
-    all(target_os = "windows", not(debug_assertions)),
-    windows_subsystem = "windows"
-)]
+//! Owns the evdev hook and the HID++ device path (gesture capture, DPI,
+//! SmartShift), serves the GUI over a Unix-socket tarpc IPC, and reconciles its
+//! own systemd user-unit autostart. The async core walks the state machine in
+//! `lifecycle` on a tokio runtime that owns the main thread.
 
 mod autostart;
 mod binary_watch;
@@ -23,8 +13,6 @@ mod overlay;
 mod pairing;
 #[cfg(target_os = "linux")]
 mod resume_linux;
-#[cfg(target_os = "windows")]
-mod resume_windows;
 // The shared locale catalogs live in `openlogi-ui`; the negotiation that picks
 // one is `openlogi_core::locale`. `t!` resolves against a backend each binary
 // generates itself, hence the relative path — see
@@ -33,13 +21,7 @@ rust_i18n::i18n!("../openlogi-ui/locales", fallback = "en");
 mod server;
 mod shutdown;
 mod startup;
-#[cfg(target_os = "macos")]
-mod status_item;
 mod takeover;
-#[cfg(target_os = "macos")]
-mod tray;
-#[cfg(target_os = "windows")]
-mod tray_windows;
 
 use openlogi_core::config::Config;
 use tracing::{info, warn};
@@ -47,8 +29,8 @@ use tracing::{info, warn};
 fn main() {
     logging::init();
 
-    // Single-instance guard: the agent owns all device I/O, the CGEventTap, and
-    // the IPC socket, so a second agent must never start — launchd's KeepAlive
+    // Single-instance guard: the agent owns all device I/O, the input hook, and
+    // the IPC socket, so a second agent must never start — systemd's restart
     // racing the GUI's one-shot auto-spawn could otherwise bring up two, and the
     // loser would steal the socket and install a duplicate event tap. Held for
     // the whole process; the OS releases it on exit (crash-recovery is free).
@@ -104,59 +86,12 @@ fn main() {
         }
     };
 
-    // macOS hosts the menu-bar item, which needs an NSApplication run loop on
-    // the process main thread — so the async core (orchestrator, IPC, watchers,
-    // hook) runs on the tokio runtime on a dedicated thread, and the main thread
-    // runs AppKit. Elsewhere there is no tray, so just block on the core.
     let device_io_signal = openlogi_hid::host::device_io_signal();
-    #[cfg(target_os = "macos")]
-    {
-        // Fail closed before the core thread can enumerate or open HID devices.
-        // AppKit releases this startup hold only after its workspace observers
-        // have received the initial session state and Core Graphics has
-        // reported whether the display is already asleep.
-        let _ = device_io_signal.suspend();
-        // Read the menu-bar preference before `config` moves into the core
-        // thread; the main thread hosts the tray.
-        let show_in_menu_bar = config.app_settings.show_in_menu_bar;
-        let app_icon = config.app_settings.app_icon;
-        // The tray waits for the core to declare the agent *armed*: a dormant
-        // agent (launch_at_login off, started at login, no client yet) must
-        // not put an icon in the menu bar only to vanish seconds later. A
-        // dropped sender means the core exited without arming — fall through
-        // and let the process end.
-        let (armed_tx, armed_rx) = std::sync::mpsc::channel::<()>();
-        if let Err(e) = std::thread::Builder::new()
-            .name("openlogi-agent-core".into())
-            .spawn(move || {
-                runtime.block_on(lifecycle::run(config, shutdown_requests, armed_tx));
-            })
-        {
-            warn!(error = %e, "could not spawn the agent core thread; exiting");
-            return;
-        }
-        if armed_rx.recv().is_ok() {
-            tray::run_app_loop(show_in_menu_bar, app_icon, device_io_signal, shutdown_tx);
-        }
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        // Windows hosts the notification-area icon on its own win32 thread
-        // (message pump included); the async core keeps the main thread.
-        #[cfg(target_os = "windows")]
-        {
-            tray_windows::spawn(config.app_settings.show_in_menu_bar, shutdown_tx.clone());
-            // Native resume notifications feed the same event seam as macOS
-            // and Linux: inventory wakes immediately and replays volatile
-            // settings on its settled authoritative snapshot.
-            resume_windows::register(device_io_signal.clone());
-        }
-        #[cfg(target_os = "linux")]
-        resume_linux::register(device_io_signal.clone());
-        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-        drop(device_io_signal);
-        runtime.block_on(lifecycle::run(config, shutdown_requests));
-    }
+    #[cfg(target_os = "linux")]
+    resume_linux::register(device_io_signal.clone());
+    #[cfg(not(target_os = "linux"))]
+    drop(device_io_signal);
+    runtime.block_on(lifecycle::run(config, shutdown_requests));
 }
 
 #[cfg(test)]

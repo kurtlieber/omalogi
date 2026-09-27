@@ -9,18 +9,6 @@
 //! why no general-purpose macOS permission crate fits: they assume one app
 //! asking for itself.
 //!
-//! ## macOS
-//!
-//! Two permissions matter: **Accessibility** (the hook's event tap) and **Input
-//! Monitoring** (opening HID devices via `IOHIDManager`). **Bluetooth** is
-//! surfaced for completeness — OpenLogi reaches BLE mice through `IOHIDManager`,
-//! so it usually reads [`PermissionStatus::Unknown`].
-//!
-//! Accessibility status is not read here: the agent owns the tap, so
-//! `openlogi_hook::has_accessibility` is the source of truth.
-//!
-//! ## Linux
-//!
 //! Access is device-file permissions rather than consent dialogs: write to
 //! `/dev/uinput` (the evdev/uinput hook's virtual devices) and read/write to
 //! `/dev/hidraw*` (HID++ to the Bolt receiver or a direct connection). Both
@@ -28,15 +16,13 @@
 
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
 
 #[cfg(test)]
 #[cfg(target_os = "linux")]
 mod tests;
 
 /// Tri-state result of a permission query.
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PermissionStatus {
     /// The app may use the capability.
@@ -50,26 +36,13 @@ pub enum PermissionStatus {
 /// A privacy permission with a platform action (deep-link or install guide).
 #[derive(Clone, Copy)]
 pub enum Permission {
-    /// macOS: Accessibility (event tap for button remapping).
+    /// Input access for button remapping (the evdev/uinput hook).
     Accessibility,
-    /// macOS: Input Monitoring (HID device access via IOHIDManager).
-    #[cfg(target_os = "macos")]
-    InputMonitoring,
-    /// macOS: CoreBluetooth authorization.
-    #[cfg(target_os = "macos")]
-    Bluetooth,
-    /// macOS: Camera (AVFoundation) authorization for the webcam preview.
-    #[cfg(target_os = "macos")]
-    Camera,
 }
-
-#[cfg(target_os = "macos")]
-pub use macos::{bluetooth, camera, input_monitoring, open_pane};
 
 #[cfg(target_os = "linux")]
 pub use linux::input_device_access;
 
 /// No-op: Linux has no pane to open — the udev-rules guide is shown inline in
 /// the Settings window instead.
-#[cfg(not(target_os = "macos"))]
 pub fn open_pane(_permission: Permission) {}

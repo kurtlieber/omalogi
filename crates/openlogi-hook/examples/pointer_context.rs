@@ -17,11 +17,6 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
     });
-    // The macOS lookup runs on the AppKit main loop, as in the agent.
-    #[cfg(target_os = "macos")]
-    if let Some(mtm) = objc2::MainThreadMarker::new() {
-        objc2_app_kit::NSApplication::sharedApplication(mtm).run();
-    }
     loop {
         std::thread::park();
     }

@@ -3,10 +3,9 @@
 use super::device_key::DeviceKey;
 use super::events::StateEvents;
 use super::{AppState, StateEvent};
-use crate::platform::app_icon::AppIconExt as _;
 use gpui_component::ThemeMode;
 use openlogi_core::config::{
-    AppIcon, AppSettings, Appearance, AssetSourcePreference, DeviceViewMode, MouseProfileTarget,
+    AppSettings, Appearance, AssetSourcePreference, DeviceViewMode, MouseProfileTarget,
     ThumbwheelSensitivity, UiScale, VerticalScrollSensitivity,
 };
 
@@ -19,43 +18,16 @@ impl AppState {
         &self.config.app_settings
     }
     /// Toggle launch-at-login by persisting it to `config.toml` — which *is*
-    /// the switch: the agent reads it (see `platform::registration`), and on
-    /// Linux/Windows reconciles its autostart on config reload. Registration
-    /// is only ensured opportunistically here, healing drift without
-    /// re-prompting — and giving a dev build its explicit way in. Disk
-    /// failures restore the persisted value and surface a config error.
+    /// the switch: the agent reconciles its systemd user unit on config
+    /// reload. Disk failures restore the persisted value and surface a config
+    /// error.
     pub fn commit_launch_at_login(&mut self, enabled: bool) -> StateEvents {
         if self.config.app_settings.launch_at_login == enabled {
             return StateEvent::SettingsChanged.into();
         }
         self.config
             .edit(|config| config.app_settings.launch_at_login = enabled);
-        if self.persist_and_reload("launch-at-login setting")
-            && let Err(error) = crate::platform::registration::ensure_registered()
-        {
-            tracing::warn!(error, enabled, "service registration failed");
-        }
-        StateEvent::SettingsChanged.into()
-    }
-    /// Toggle the menu-bar (status item) icon preference and persist it. The
-    /// icon is hosted by the always-on agent, which reads this on startup and
-    /// installs the status item only when enabled — so the change takes effect
-    /// the next time the agent launches (a no-restart live toggle would need a
-    /// main-thread hop from the agent's IPC reload). `ReloadConfig` keeps the
-    /// agent's other config in sync meanwhile. An already-set value writes
-    /// nothing and is still reported.
-    ///
-    /// The callers are the menu-bar / notification-area toggle in Settings,
-    /// shown only where there's a tray (macOS + Windows), so the setter is
-    /// gated the same way to stay dead-code-clean on Linux.
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    pub fn commit_show_in_menu_bar(&mut self, enabled: bool) -> StateEvents {
-        if self.config.app_settings.show_in_menu_bar == enabled {
-            return StateEvent::SettingsChanged.into();
-        }
-        self.config
-            .edit(|config| config.app_settings.show_in_menu_bar = enabled);
-        self.persist_and_reload("show-in-menu-bar setting");
+        self.persist_and_reload("launch-at-login setting");
         StateEvent::SettingsChanged.into()
     }
     /// Toggle the opt-in update check and persist it. No immediate side effect
@@ -126,25 +98,6 @@ impl AppState {
             *slot = name;
         });
         self.persist_config("theme setting");
-        StateEvent::SettingsChanged.into()
-    }
-    /// Persist the chosen app icon and wear it now. Unlike the theme settings
-    /// this one leaves the process twice over: the icon is written onto the app
-    /// bundle so it survives a quit, and the agent is told so it can restyle
-    /// the menu-bar item — the one surface showing an icon that the GUI cannot
-    /// reach. An already-set value writes nothing and is still reported.
-    pub fn commit_app_icon(&mut self, icon: AppIcon) -> StateEvents {
-        if self.config.app_settings.app_icon == icon {
-            return StateEvent::SettingsChanged.into();
-        }
-        self.config
-            .edit(|config| config.app_settings.app_icon = icon);
-        // Only wear what the config kept: a failed write rolls the setting
-        // back, and an icon applied over that would outlive the choice it came
-        // from — Finder would show one thing and Settings another.
-        if self.persist_and_reload("app icon setting") {
-            icon.apply();
-        }
         StateEvent::SettingsChanged.into()
     }
     /// Persist the UI corner-radius override (`None` = each theme's own

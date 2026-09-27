@@ -11,8 +11,13 @@ use super::device_session::DeviceSession;
 use super::events::StateEvents;
 use super::{AppState, StateEvent};
 
+/// Whether the agent reports camera activity. Upstream's source is macOS
+/// CoreMediaIO; Linux has none yet (`openlogi_agent_core::watchers::camera`),
+/// so a light's `auto_camera` preference is kept but never drives its power.
+const CAMERA_ACTIVITY_AVAILABLE: bool = false;
+
 const fn camera_policy_applies(light: LightSettings) -> bool {
-    cfg!(target_os = "macos") && light.auto_camera
+    CAMERA_ACTIVITY_AVAILABLE && light.auto_camera
 }
 
 /// Result state of the latest standalone-light command for one device.
@@ -479,7 +484,7 @@ impl AppState {
         };
         let previous = self.light_for(&runtime_key);
         let camera_mode_changed =
-            cfg!(target_os = "macos") && previous.auto_camera != light.auto_camera;
+            CAMERA_ACTIVITY_AVAILABLE && previous.auto_camera != light.auto_camera;
         let effective_enabled = if camera_policy_applies(light) {
             if camera_mode_changed {
                 self.lights.camera_active

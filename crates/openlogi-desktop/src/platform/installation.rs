@@ -1,71 +1,25 @@
 //! Read-only installation ownership of the running GUI, not its download history.
 //!
 //! Detection runs once off the UI thread. A package receipt must identify this
-//! executable (or its enclosing app), not merely another installed OpenLogi.
-//! Unmarked copies stay unknown; an app bundle is not proof of a DMG download.
-
-#[cfg(any(target_os = "macos", target_os = "windows", test))]
-use std::path::Path;
+//! executable, not merely another installed copy. Unmarked copies stay unknown.
 
 use gpui::{App, Global};
 
 #[cfg(any(target_os = "linux", test))]
 mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "windows")]
-mod windows;
 
 /// Evidence-backed ownership of the currently running copy.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "each host constructs only its own installation sources"
-    )
-)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstallationSource {
-    /// A Homebrew receipt and Caskroom back-link identify this app bundle.
-    Homebrew(HomebrewCask),
     /// The package database owns this executable as part of `openlogi`.
     LinuxPackage(LinuxPackage),
     /// The resolved executable lives in the Nix store.
     Nix,
-    /// The per-user MSI registration points to this executable.
-    WindowsMsi,
-    /// This copy carries the portable ZIP's explicit distribution marker.
-    WindowsPortable,
-    /// A macOS bundle without matching Homebrew ownership; origin is unknown.
-    MacAppBundle,
     /// No supported ownership evidence, unavailable metadata, or conflicting receipts.
     Unknown,
 }
 
-/// The two supported Homebrew cask tokens, independent of their recorded version.
-#[cfg_attr(
-    all(not(target_os = "macos"), not(test)),
-    expect(
-        dead_code,
-        reason = "Homebrew variants are constructed on macOS or in tests"
-    )
-)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HomebrewCask {
-    /// `openlogi`, distributed by the official Homebrew cask repository.
-    Official,
-    /// `openlogi@latest`, distributed by `aprilnea/tap`.
-    Latest,
-}
-
 /// Linux package database that owns the running executable.
-#[cfg_attr(
-    all(not(target_os = "linux"), not(test)),
-    expect(
-        dead_code,
-        reason = "Linux package variants are constructed on Linux or in tests"
-    )
-)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinuxPackage {
     /// Debian-family package registered with dpkg.
@@ -95,11 +49,7 @@ impl InstallationSource {
         };
         #[cfg(target_os = "linux")]
         return linux::detect(&executable);
-        #[cfg(target_os = "macos")]
-        return macos::detect(&executable);
-        #[cfg(target_os = "windows")]
-        return windows::detect(&executable);
-        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        #[cfg(not(target_os = "linux"))]
         {
             let _ = executable;
             Self::Unknown
@@ -119,13 +69,4 @@ pub fn install(cx: &mut App) {
         cx.update(|cx| cx.set_global(Installation::Detected(source)));
     })
     .detach();
-}
-
-/// Compare existing filesystem objects after resolving links; failures never match.
-#[cfg(any(target_os = "macos", target_os = "windows", test))]
-fn same_path(left: &Path, right: &Path) -> bool {
-    match (left.canonicalize(), right.canonicalize()) {
-        (Ok(left), Ok(right)) => left == right,
-        _ => false,
-    }
 }

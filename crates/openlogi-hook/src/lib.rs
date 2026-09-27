@@ -1,10 +1,6 @@
 //! OS-level mouse-event hook for OpenLogi.
 //!
-//! | Platform | Implementation |
-//! |----------|---------------|
-//! | macOS    | `CGEventTap` (same primitive used by Logi Options+) |
-//! | Linux    | `evdev` grab + `uinput` re-injection |
-//! | Windows  | `WH_MOUSE_LL` low-level mouse hook (motion is edge-clamped) |
+//! Linux only: an `evdev` grab plus `uinput` re-injection.
 //!
 //! # Usage
 //!
@@ -374,10 +370,10 @@ trait HookBackend {
 /// The backend for a platform with no hook: every default, and a
 /// [`HookBackend::start`] that can only fail. Compiled only where it is the
 /// one selected below, so it never sits unused in a real build.
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+#[cfg(not(target_os = "linux"))]
 struct Unsupported;
 
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+#[cfg(not(target_os = "linux"))]
 impl HookBackend for Unsupported {
     /// Uninhabited, so [`Hook`] can never hold a running hook here.
     type Running = std::convert::Infallible;
@@ -395,18 +391,14 @@ impl HookBackend for Unsupported {
 
 // The backend this build talks to — the crate's one platform switch.
 cfg_select! {
-    target_os = "macos" => { type Backend = macos::Backend; }
     target_os = "linux" => { type Backend = linux::Backend; }
-    target_os = "windows" => { type Backend = windows::Backend; }
     _ => { type Backend = Unsupported; }
 }
 
 /// A running OS-level mouse hook. Call [`Hook::stop`] to tear down.
 ///
-/// On macOS a dedicated thread runs a `CFRunLoop` draining a `CGEventTap`.
-/// On Linux one thread per physical mouse device reads `evdev` events and
-/// re-injects pass-through events via a `uinput` virtual device. On Windows a
-/// dedicated thread owns a `WH_MOUSE_LL` hook and pumps its message loop.
+/// One thread per physical mouse device reads `evdev` events and re-injects
+/// pass-through events via a `uinput` virtual device.
 /// Call `stop` (or let the value drop) to shut down all threads and release
 /// grabbed devices.
 pub struct Hook {
@@ -423,15 +415,12 @@ impl Hook {
     /// Install the input hook and start delivering events to `cb`.
     ///
     /// The callback runs on a private background thread for every mouse
-    /// button, scroll, or (macOS / Windows) keyboard event. It must return
+    /// button or scroll event. It must return
     /// [`EventDisposition`] quickly — blocking it stalls input delivery
     /// system-wide.
     ///
-    /// On macOS, returns [`HookError::AccessibilityDenied`] when Accessibility
-    /// permission has not been granted. On Linux, returns
-    /// `HookError::NoDeviceFound` when no mouse device is accessible (key
-    /// events are not yet captured there). On Windows, installs `WH_MOUSE_LL`
-    /// and `WH_KEYBOARD_LL` low-level hooks.
+    /// Returns `HookError::NoDeviceFound` when no mouse device is accessible
+    /// (key events are not yet captured on Linux).
     pub fn start(
         cb: impl Fn(HookEvent) -> EventDisposition + Send + Sync + 'static,
     ) -> Result<Self, HookError> {
@@ -448,10 +437,6 @@ impl Hook {
     }
 
     /// Whether the platform worker is still able to deliver events.
-    ///
-    /// A Windows message-pump error is terminal: the worker clears its callback
-    /// so native input passes through, and this method then returns `false`
-    /// even though the [`Hook`] handle has not yet been dropped.
     #[must_use]
     pub fn is_running(&self) -> bool {
         self.inner.as_ref().is_some_and(Backend::is_running)
@@ -532,21 +517,11 @@ pub fn frontmost_application() -> Option<ForegroundApp> {
     Backend::frontmost_app()
 }
 
-/// Return the Safari process captured by the latest macOS foreground-app
-/// observation without querying AppKit on the caller's thread.
-///
-/// This is a nonblocking atomic snapshot for input callbacks. It returns
-/// `None` when Safari is not frontmost and on non-macOS platforms.
+/// The frontmost Safari process. Safari exists only on macOS, so this is
+/// always `None`; kept so upstream's shared agent runtime compiles unchanged.
 #[must_use]
 pub fn frontmost_safari_pid() -> Option<i32> {
-    #[cfg(target_os = "macos")]
-    {
-        macos::frontmost_safari_pid()
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
+    None
 }
 
 /// Failure to install or operate a native foreground-application observer.
@@ -567,19 +542,12 @@ pub enum ForegroundApplicationObserverError {
 /// any worker it owns.
 #[must_use]
 pub struct ForegroundApplicationObserver {
-    #[cfg(target_os = "macos")]
-    platform: macos::ForegroundApplicationObserver,
     #[cfg(target_os = "linux")]
     platform: linux::ForegroundApplicationObserver,
-    #[cfg(target_os = "windows")]
-    platform: windows::foreground::ForegroundApplicationObserver,
 }
 
 impl ForegroundApplicationObserver {
     /// Return an error if a fallible observer worker has stopped delivering.
-    ///
-    /// Native macOS registration has no independently observable worker
-    /// health, so it relies on the consumer's idle recovery read.
     pub fn check_health(&self) -> Result<(), ForegroundApplicationObserverError> {
         #[cfg(target_os = "linux")]
         {
@@ -587,18 +555,7 @@ impl ForegroundApplicationObserver {
                 .check_health()
                 .map_err(|error| ForegroundApplicationObserverError::Platform(error.to_owned()))
         }
-        #[cfg(target_os = "windows")]
-        {
-            self.platform
-                .check_health()
-                .map_err(|error| ForegroundApplicationObserverError::Platform(error.to_string()))
-        }
-        #[cfg(target_os = "macos")]
-        {
-            let _ = &self.platform;
-            Ok(())
-        }
-        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+        #[cfg(not(target_os = "linux"))]
         {
             Err(ForegroundApplicationObserverError::Unsupported)
         }
@@ -616,45 +573,16 @@ pub fn watch_frontmost_application_changes(
 ) -> Result<ForegroundApplicationObserver, ForegroundApplicationObserverError> {
     let on_change: Arc<dyn Fn() + Send + Sync> = Arc::new(on_change);
 
-    #[cfg(target_os = "macos")]
-    {
-        let native_callback = Arc::clone(&on_change);
-        let platform = macos::watch_frontmost_application_activations(move |_| native_callback());
-        on_change();
-        Ok(ForegroundApplicationObserver { platform })
-    }
     #[cfg(target_os = "linux")]
     {
         let platform = linux::watch_frontmost_application_activations(move |_| on_change())
             .map_err(|error| ForegroundApplicationObserverError::Platform(error.to_string()))?;
         Ok(ForegroundApplicationObserver { platform })
     }
-    #[cfg(target_os = "windows")]
-    {
-        let platform = windows::foreground::watch_frontmost_application_activations(move |_| {
-            on_change();
-        })
-        .map_err(|error| ForegroundApplicationObserverError::Platform(error.to_string()))?;
-        Ok(ForegroundApplicationObserver { platform })
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    #[cfg(not(target_os = "linux"))]
     {
         let _ = on_change;
         Err(ForegroundApplicationObserverError::Unsupported)
-    }
-}
-
-/// Observe macOS foreground-application activations.
-///
-/// Each callback carries the application from AppKit's activation notification;
-/// it may run on any thread and must return quickly. Dropping the returned
-/// handle unregisters the native observer and releases its block.
-#[cfg(target_os = "macos")]
-pub fn watch_frontmost_application_activations(
-    on_activation: impl Fn(Option<ForegroundApp>) + Send + Sync + 'static,
-) -> ForegroundApplicationObserver {
-    ForegroundApplicationObserver {
-        platform: macos::watch_frontmost_application_activations(on_activation),
     }
 }
 
@@ -667,14 +595,8 @@ pub fn cursor_position() -> Option<CursorPosition> {
     Backend::cursor_position()
 }
 
-#[cfg(target_os = "macos")]
-mod macos;
-
 #[cfg(target_os = "linux")]
 mod linux;
-
-#[cfg(any(target_os = "windows", test))]
-mod windows;
 
 #[cfg(test)]
 mod tests;

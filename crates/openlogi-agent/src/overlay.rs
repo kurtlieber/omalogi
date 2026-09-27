@@ -64,41 +64,6 @@ pub fn spawn() {
     }
 }
 
-/// Ask the overlay to leave, on the way out of a deliberate agent shutdown.
-///
-/// The helper is spawned detached and the menu-bar Quit is a `process::exit`
-/// that runs no destructors, so without this the overlay outlives the agent
-/// until its own give-up deadline — a minute of a stray GPUI process in
-/// Activity Monitor after the user asked for everything to stop. Nothing here
-/// is load-bearing: the overlay leaves either way, so the policy is tuned for a
-/// Quit that still feels instant rather than for a guaranteed exit.
-///
-/// Only the tray platforms have a deliberate shutdown to hook. Elsewhere the
-/// agent runs until something kills it, and the overlay's own deadline is all
-/// there is.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub fn evict_on_quit() {
-    use std::time::Duration;
-
-    use succession::Occupancy;
-
-    let Ok(directory) = openlogi_core::paths::config_dir() else {
-        return;
-    };
-    let Ok(Occupancy::HeldBy(record)) = Role::new(directory, "overlay").occupancy() else {
-        return;
-    };
-    let outcome = eviction::evict(
-        &record,
-        &Policy {
-            escalate_after: Some(Duration::from_millis(150)),
-            deadline: Duration::from_millis(750),
-            ..Policy::default()
-        },
-    );
-    info!(?outcome, "asked the overlay to leave before exiting");
-}
-
 /// Log what the supervisor did, and evict a tenant this agent has superseded.
 ///
 /// Eviction is the migration path: an overlay that predates the claim record
@@ -164,19 +129,6 @@ fn overlay_binary_path() -> Option<PathBuf> {
     ));
     if sibling.is_file() {
         return Some(sibling);
-    }
-
-    #[cfg(target_os = "macos")]
-    for app in executable.ancestors().filter(|path| {
-        path.extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("app"))
-    }) {
-        for relative in brand::Helper::Overlay.executable_candidates() {
-            let candidate = app.join(relative);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
     }
 
     find_on_path(brand::Helper::Overlay.executable())

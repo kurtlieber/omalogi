@@ -26,10 +26,6 @@ pub(super) struct AgentSession {
     link: AgentLink,
     foreground: ForegroundApps,
     last_ready_inventory: Vec<DeviceInventory>,
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    monitor_events: std::collections::VecDeque<openlogi_ipc::MonitorEvent>,
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    event_taps: Vec<openlogi_hook::EventTapInfo>,
 }
 
 impl Default for AgentSession {
@@ -38,10 +34,6 @@ impl Default for AgentSession {
             link: AgentLink::Connecting,
             foreground: ForegroundApps::default(),
             last_ready_inventory: Vec::new(),
-            #[cfg(all(target_os = "macos", debug_assertions))]
-            monitor_events: std::collections::VecDeque::new(),
-            #[cfg(all(target_os = "macos", debug_assertions))]
-            event_taps: Vec::new(),
         }
     }
 }
@@ -82,48 +74,6 @@ impl AppState {
         }
     }
 
-    /// Fold one live-monitor poll into what the Diagnostics page renders: the
-    /// refreshed event-tap snapshot, and whatever events arrived since the
-    /// last poll.
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    pub fn record_monitor_poll(
-        &mut self,
-        taps: Vec<openlogi_hook::EventTapInfo>,
-        events: Vec<openlogi_ipc::MonitorEvent>,
-    ) -> StateEvents {
-        self.set_event_taps(taps);
-        if !events.is_empty() {
-            self.push_monitor_events(events);
-        }
-        StateEvent::DiagnosticsChanged.into()
-    }
-    /// Append a batch of live-monitor events, capping the retained history so the
-    /// buffer can't grow without bound while the monitor is open.
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    fn push_monitor_events(&mut self, events: Vec<openlogi_ipc::MonitorEvent>) {
-        const MAX: usize = 200;
-        self.agent.monitor_events.extend(events);
-        let overflow = self.agent.monitor_events.len().saturating_sub(MAX);
-        self.agent.monitor_events.drain(..overflow);
-    }
-    /// Recent live-monitor events, oldest first.
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    #[must_use]
-    pub fn monitor_events(&self) -> &std::collections::VecDeque<openlogi_ipc::MonitorEvent> {
-        &self.agent.monitor_events
-    }
-    /// Replace the cached event-tap snapshot the Diagnostics page renders.
-    /// Refreshed on the live-monitor poll tick; see [`Self::event_taps`].
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    fn set_event_taps(&mut self, taps: Vec<openlogi_hook::EventTapInfo>) {
-        self.agent.event_taps = taps;
-    }
-    /// The cached event-tap snapshot for the Diagnostics page.
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    #[must_use]
-    pub fn event_taps(&self) -> &[openlogi_hook::EventTapInfo] {
-        &self.agent.event_taps
-    }
     /// Ask the agent to fire the macOS Accessibility prompt. The agent owns the
     /// CGEventTap, so the system dialog must name and authorize the *agent*
     /// binary; prompting in the GUI process (as the pre-split build did) would
