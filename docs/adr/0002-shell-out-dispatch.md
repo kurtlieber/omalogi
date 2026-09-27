@@ -19,7 +19,9 @@ LockScreen on Hyprland (`LockSession` OK ≠ hyprlock ran).
 - Covers `omarchy-*` helpers that have no IPC equivalent
   (lock, screenshot, menu) — a socket client couldn't.
 - Matches upstream PRs, so those cherry-pick if merged.
-- Synchronous on the action worker; a hung helper stalls later remaps
-  (marked `ponytail:` in code — sidecar thread if it bites).
+- The action worker waits at most one second for a helper's exit status;
+  a helper still running after that (Omasnap's preview, the lock script's
+  teardown) counts as launched and is reaped on a detached thread, so a slow
+  helper cannot stall later remaps.
 - Helpers must exist on `PATH`; FHS-standard install paths keep this true
   for AUR packaging (phase 2).

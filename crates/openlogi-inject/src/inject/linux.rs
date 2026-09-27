@@ -6,7 +6,9 @@
 //! without panicking.
 
 use std::io;
+use std::process::{Command, Stdio};
 use std::sync::{LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use evdev::uinput::VirtualDevice;
 use evdev::{AttributeSet, EventType, InputEvent, KeyCode, RelativeAxisCode};
@@ -131,7 +133,7 @@ fn dispatch_media(key: MediaKey) {
 /// Dispatch a window-manager or power [`NativeAction`]. `action` is only
 /// used for its label in debug logs.
 ///
-/// Omalogi is Omarchy/Hyprland-only: on sessions exposing
+/// Omalogi targets Omarchy/Hyprland: on sessions exposing
 /// `HYPRLAND_INSTANCE_SIGNATURE` each action routes to `hyprctl` or an
 /// `omarchy-*` helper with fixed argv (resolved via the agent's `PATH`)
 /// and falls back to the legacy chord when the helper is missing or fails.
@@ -157,9 +159,7 @@ fn dispatch_native(action: &Action, native: NativeAction) {
         }
         // Handled on Hyprland above; off Hyprland no universal Linux
         // equivalent exists and the compositor shortcut varies.
-        NativeAction::MissionControl
-        | NativeAction::ShowDesktop
-        | NativeAction::LaunchpadShow => {
+        NativeAction::MissionControl | NativeAction::ShowDesktop | NativeAction::LaunchpadShow => {
             tracing::debug!(
                 action = action.label(),
                 "no Linux equivalent — action skipped"
@@ -203,26 +203,38 @@ fn dispatch_hyprland(action: &Action, native: NativeAction) -> bool {
 
 /// Fixed helper argv per [`NativeAction`]; `None` = no Hyprland mapping.
 /// Pure table so tests pin it without spawning processes.
+///
+/// The Lua dispatchers mirror Omarchy's own bindings
+/// (`default/hypr/bindings/tiling.lua`): `hyprctl dispatch` no longer accepts
+/// the legacy dispatcher strings on Omarchy's Lua config layer.
 fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'static str])> {
     match native {
-        NativeAction::PreviousDesktop => {
-            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"]))
-        }
-        NativeAction::NextDesktop => {
-            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"]))
-        }
+        // SUPER+SHIFT+TAB / SUPER+TAB.
+        NativeAction::PreviousDesktop => Some((
+            "hyprctl",
+            &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"],
+        )),
+        NativeAction::NextDesktop => Some((
+            "hyprctl",
+            &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"],
+        )),
         // NOTE: no logind attempt here — `LockSession` succeeding does not
         // mean hyprlock ran. `omarchy-system-lock` is the lock path.
         NativeAction::LockScreen => Some(("omarchy-system-lock", &[])),
-        NativeAction::Screenshot => Some(("omarchy-capture-screenshot", &[])),
+        // The bare command is Omasnap's interactive smart picker (the PRINT
+        // binding); a full-screen capture needs the explicit mode.
+        NativeAction::Screenshot => Some(("omarchy-capture-screenshot", &["fullscreen"])),
         NativeAction::CaptureRegion => Some(("omarchy-capture-screenshot", &["region"])),
         NativeAction::LaunchpadShow => Some(("omarchy-menu", &["toggle"])),
-        NativeAction::ShowDesktop => {
-            // Omarchy's "show desktop" is its scratchpad (SUPER+S):
-            // toggle the named special workspace, don't guess at raw
-            // togglespecialworkspace.
-            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.workspace.toggle_n(\"scratchpad\"))"]))
-        }
+        // Omarchy has no "show desktop"; the nearest stock gesture is its
+        // scratchpad toggle (SUPER+S).
+        NativeAction::ShowDesktop => Some((
+            "hyprctl",
+            &[
+                "eval",
+                "hl.dispatch(hl.dsp.workspace.toggle_special('scratchpad'))",
+            ],
+        )),
         // Neither has an Omarchy equivalent: hyprexpo/overview is not
         // installed (probed 2026-09-27 — no expo/overview anywhere in
         // Omarchy stock or user config); Sleep never reaches here (see above).
@@ -230,24 +242,55 @@ fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'s
     }
 }
 
+/// How long the action worker waits for a helper to exit before treating it
+/// as launched. Omasnap keeps running for its capture preview and the lock
+/// helper for its screensaver teardown; neither may stall later remaps.
+const HELPER_EXIT_WAIT: Duration = Duration::from_secs(1);
+
 /// Run one helper with fixed argv (no shell) and report success.
 ///
-/// Synchronous on the action worker: these helpers are local and exit fast.
-// ponytail: no timeout — a hung helper stalls later remaps. Sidecar thread
-// if it ever bites (upstream #1162 hit this with a hung lock helper).
+/// A helper that exits within [`HELPER_EXIT_WAIT`] reports its exit status; one
+/// still running after that is treated as launched and reaped on a detached
+/// thread. Output goes to `/dev/null`, so a backgrounded grandchild holding the
+/// helper's stdout can't keep the worker waiting either.
 fn run_helper(program: &str, args: &[&str]) -> bool {
-    match std::process::Command::new(program).args(args).output() {
-        Ok(out) if out.status.success() => {
-            tracing::debug!(program, "Hyprland helper ran");
-            true
-        }
-        Ok(out) => {
-            tracing::debug!(program, status = ?out.status, "Hyprland helper failed");
-            false
-        }
+    let mut child = match Command::new(program)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
         Err(e) => {
             tracing::debug!(program, error = %e, "Hyprland helper not found");
-            false
+            return false;
+        }
+    };
+    let deadline = Instant::now() + HELPER_EXIT_WAIT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => {
+                tracing::debug!(program, "Hyprland helper ran");
+                return true;
+            }
+            Ok(Some(status)) => {
+                tracing::debug!(program, ?status, "Hyprland helper failed");
+                return false;
+            }
+            Ok(None) if Instant::now() >= deadline => {
+                tracing::debug!(
+                    program,
+                    "Hyprland helper still running — treated as launched"
+                );
+                std::thread::spawn(move || child.wait());
+                return true;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                tracing::debug!(program, error = %e, "Hyprland helper wait failed");
+                return false;
+            }
         }
     }
 }
@@ -760,11 +803,13 @@ fn try_mpris_command(command: &str) -> Option<()> {
 #[cfg(test)]
 mod tests {
     use evdev::KeyCode;
-    use openlogi_core::binding::{KeyCombo, Shortcut};
+    use openlogi_core::binding::{KeyCombo, NativeAction, Shortcut};
 
-    use super::{combo, hid_usage_to_linux, hyprland_command, key_ev, key_phase_events, modifiers_to_keycodes, syn};
+    use super::{
+        combo, hid_usage_to_linux, hyprland_command, key_ev, key_phase_events,
+        modifiers_to_keycodes, run_helper, syn,
+    };
     use crate::inject::KeyPhase;
-    use openlogi_core::binding::NativeAction;
 
     #[test]
     fn held_chord_edges_use_inverse_key_order() {
@@ -846,13 +891,32 @@ mod tests {
     fn hyprland_table_pins_helper_argv() {
         use NativeAction::*;
         let table = [
-            (PreviousDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"][..]),
-            (NextDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"][..]),
+            (
+                PreviousDesktop,
+                "hyprctl",
+                &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"][..],
+            ),
+            (
+                NextDesktop,
+                "hyprctl",
+                &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"][..],
+            ),
             (LockScreen, "omarchy-system-lock", &[][..]),
-            (Screenshot, "omarchy-capture-screenshot", &[][..]),
+            (
+                Screenshot,
+                "omarchy-capture-screenshot",
+                &["fullscreen"][..],
+            ),
             (CaptureRegion, "omarchy-capture-screenshot", &["region"][..]),
             (LaunchpadShow, "omarchy-menu", &["toggle"][..]),
-            (ShowDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.workspace.toggle_n(\"scratchpad\"))"][..]),
+            (
+                ShowDesktop,
+                "hyprctl",
+                &[
+                    "eval",
+                    "hl.dispatch(hl.dsp.workspace.toggle_special('scratchpad'))",
+                ][..],
+            ),
         ];
         for (action, program, args) in table {
             assert_eq!(hyprland_command(action), Some((program, args)));
@@ -865,5 +929,23 @@ mod tests {
             hyprland_command(Screenshot),
             hyprland_command(CaptureRegion)
         );
+    }
+
+    /// A helper's exit status decides between "handled" and the legacy
+    /// fallback; a missing helper falls back too.
+    #[test]
+    fn helper_exit_status_decides_fallback() {
+        assert!(run_helper("true", &[]));
+        assert!(!run_helper("false", &[]));
+        assert!(!run_helper("omalogi-no-such-helper", &[]));
+    }
+
+    /// A long-running helper (Omasnap's preview) counts as launched once the
+    /// wait expires instead of stalling the action worker until it exits.
+    #[test]
+    fn long_running_helper_does_not_block_the_worker() {
+        let started = std::time::Instant::now();
+        assert!(run_helper("sleep", &["30"]));
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
     }
 }
