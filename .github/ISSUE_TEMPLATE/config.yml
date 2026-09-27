@@ -1,14 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 💬 Questions & Support (GitHub Discussions)
-    url: https://github.com/AprilNEA/OpenLogi/discussions
-    about: Usage questions, setup help, and how-tos. Please don't open an issue for support questions.
-  - name: 📣 Community Chat (Telegram)
-    url: https://t.me/+u8DfyLlIqPYxZjJh
-    about: Casual chat and release announcements.
+  - name: 🖱️ New device or HID++ protocol support (upstream OpenLogi)
+    url: https://github.com/AprilNEA/OpenLogi/issues
+    about: Device and protocol support comes from upstream OpenLogi and is pulled into Omalogi on its release tags. Please request new devices there.
   - name: 📖 Documentation
-    url: https://github.com/AprilNEA/OpenLogi/tree/master/docs
+    url: https://github.com/kurtlieber/omalogi/tree/master/docs
     about: Install, usage, and configuration guides — check here first.
   - name: 🔒 Report a Security Vulnerability
-    url: https://github.com/AprilNEA/OpenLogi/security/advisories/new
+    url: https://github.com/kurtlieber/omalogi/security/advisories/new
     about: Privately disclose security issues. Do NOT open a public issue for them.

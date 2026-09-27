@@ -62,9 +62,6 @@ Panel selection and settings writes follow `.agents/rules/gui.md`.
   change a reusable component, update its gallery entry in the same commit**;
   the gallery is not covered by tests and silently drifts from production
   otherwise.
-- The macOS build needs full Xcode for GPUI's Metal shaders. devenv sets the
-  environment when Xcode is present (`direnv reload` if the shader compile
-  fails).
 
 ## Build inputs that are not source
 
@@ -73,11 +70,6 @@ Panel selection and settings writes follow `.agents/rules/gui.md`.
   ship them. **Do not vendor copies of those themes into this repo.**
   `OPENLOGI_THEMES_DIR` overrides the lookup.
 - `themes/openlogi.json` is the app's own theme, layered on that upstream set.
-- `bundle/` holds `OpenLogi.entitlements` and one `Info.plist` per bundled
-  binary (`desktop-dev`, `agent-release`, `overlay-release`). `cargo xtask`
-  packaging reads them; they are the app's macOS identity, not decoration —
-  changing one changes what TCC sees. See
-  [`xtask/AGENTS.md`](../../xtask/AGENTS.md).
 
 ## Related rules
 
@@ -86,5 +78,4 @@ Panel selection and settings writes follow `.agents/rules/gui.md`.
 | any `.rs` here (GPUI house style) | [`.agents/rules/gui.md`](../../.agents/rules/gui.md) |
 | `services/i18n.rs`, any user-facing string | [`.agents/rules/i18n.md`](../../.agents/rules/i18n.md) |
 | anything crossing the agent boundary | [`crates/openlogi-ipc/AGENTS.md`](../openlogi-ipc/AGENTS.md) |
-| `platform/**` or any macOS FFI | [`.agents/rules/objc-ffi.md`](../../.agents/rules/objc-ffi.md) |
-| a permission symptom or the bundle identity | [`.claude/skills/openlogi-macos-permissions/SKILL.md`](../../.claude/skills/openlogi-macos-permissions/SKILL.md) |
+| `platform/**` | [`.agents/rules/cross-platform.md`](../../.agents/rules/cross-platform.md) |

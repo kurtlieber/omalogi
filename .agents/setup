@@ -56,11 +56,11 @@ if ! command -v rustup >/dev/null 2>&1; then
   source "$HOME/.cargo/env"
 fi
 
-profile_marker="# OpenLogi orb Rust toolchain"
+profile_marker="# Omalogi orb Rust toolchain"
 if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
   cat >>"$HOME/.bash_profile" <<'EOF'
 
-# OpenLogi orb Rust toolchain
+# Omalogi orb Rust toolchain
 if [ -f "$HOME/.cargo/env" ]; then
   . "$HOME/.cargo/env"
 fi
@@ -70,8 +70,7 @@ fi
 rustup toolchain install stable \
   --profile minimal \
   --component rustfmt \
-  --component clippy \
-  --target x86_64-pc-windows-gnu
+  --component clippy
 echo "    completed in $((SECONDS - step_started))s"
 
 step_started=$SECONDS
@@ -80,9 +79,4 @@ host_target="$(rustc -vV | sed -n 's/^host: //p')"
 cargo fetch --locked --target "$host_target"
 echo "    completed in $((SECONDS - step_started))s"
 
-step_started=$SECONDS
-echo "==> Installing locked release-notes dependencies"
-corepack pnpm@10.11.0 --dir .github/scripts/release-notes install --frozen-lockfile
-echo "    completed in $((SECONDS - step_started))s"
-
-echo "==> OpenLogi orb setup complete"
+echo "==> Omalogi orb setup complete"

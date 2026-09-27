@@ -1,5 +1,5 @@
 {
-  description = "OpenLogi — local-first companion for Logitech HID++ peripherals";
+  description = "Omalogi — Omarchy/Hyprland fork of OpenLogi, a local-first companion for Logitech HID++ peripherals";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

@@ -11,12 +11,12 @@
 name: openlogi
 version: "${VERSION}"
 arch: "${PKG_ARCH}"
-maintainer: AprilNEA <dev@aprilnea.me>
+maintainer: Kurt Lieber <kurt@lieber.org>
 description: |-
-  Logitech HID++ device control — remap buttons, DPI, and SmartShift.
-  An open-source, local-first alternative to Logi Options+. No account,
-  no telemetry; configuration lives in a plain TOML file.
-homepage: https://github.com/AprilNEA/OpenLogi
+  Logitech HID++ device control for Omarchy — remap buttons, DPI, and
+  SmartShift, with Hyprland-native system actions. A fork of OpenLogi.
+  No account, no telemetry; configuration lives in a plain TOML file.
+homepage: https://github.com/kurtlieber/omalogi
 license: Apache-2.0 OR MIT
 
 contents:
@@ -108,7 +108,7 @@ contents:
       mode: 0644
 
 archlinux:
-  packager: "AprilNEA <dev@aprilnea.me>"
+  packager: "Kurt Lieber <kurt@lieber.org>"
 
 overrides:
   deb:

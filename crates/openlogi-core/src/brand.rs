@@ -12,12 +12,13 @@
 
 use std::path::Path;
 
-/// The OpenLogi GitHub repository.
-pub const REPO_URL: &str = "https://github.com/AprilNEA/OpenLogi";
+/// The Omalogi GitHub repository. (Omalogi-owned delta in this upstream-pulled
+/// crate — see `docs/PROTOCOL-PULLS.md`.)
+pub const REPO_URL: &str = "https://github.com/kurtlieber/omalogi";
 /// The README, used as the in-app "Help" link.
-pub const HELP_URL: &str = "https://github.com/AprilNEA/OpenLogi#readme";
+pub const HELP_URL: &str = "https://github.com/kurtlieber/omalogi#readme";
 /// The "latest release" page.
-pub const RELEASES_URL: &str = "https://github.com/AprilNEA/OpenLogi/releases/latest";
+pub const RELEASES_URL: &str = "https://github.com/kurtlieber/omalogi/releases/latest";
 
 /// The application identifier: the Wayland xdg-toplevel `app_id` (and X11
 /// `WM_CLASS`) the GUI advertises, the root of the macOS bundle-id family
@@ -66,9 +67,9 @@ pub fn dev_id(id: &str) -> String {
     format!("{id}{DEV_SUFFIX}")
 }
 
-/// The app's display name: the outer bundle's `CFBundleName` and
-/// `CFBundleDisplayName`, and the root the helpers' names are formed from.
-pub const APP_NAME: &str = "OpenLogi";
+/// The app's display name, shown in window titles and menus. (Omalogi-owned
+/// delta in this upstream-pulled crate — see `docs/PROTOCOL-PULLS.md`.)
+pub const APP_NAME: &str = "Omalogi";
 
 /// The GUI's executable, as cargo builds it and as the macOS bundle and the
 /// Linux packages ship it. The helpers' executables are [`Helper::executable`].

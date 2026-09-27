@@ -30,7 +30,7 @@ use crate::index::{FileEntry, Index};
 const USER_AGENT: &str = concat!(
     "openlogi-assets/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://github.com/AprilNEA/OpenLogi)"
+    " (+https://github.com/kurtlieber/omalogi)"
 );
 
 /// Bound on DNS + TCP + TLS connect. Deliberately does *not* cap body-read

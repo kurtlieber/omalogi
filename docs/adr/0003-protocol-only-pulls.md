@@ -1,6 +1,6 @@
 # ADR-0003: Protocol-only upstream pulls
 
-Status: accepted
+Status: superseded by [ADR-0004](0004-merge-upstream-release-tags.md)
 
 ## Context
 

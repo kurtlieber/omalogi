@@ -1,47 +1,68 @@
-# Protocol pulls from upstream
+# Pulling from upstream
 
-Omalogi tracks `AprilNEA/OpenLogi` as the `upstream` remote and pulls
-**protocol crates only** on upstream release tags (see ADR-0003).
+Omalogi tracks `AprilNEA/OpenLogi` as the `upstream` remote and merges each
+upstream **release tag** (ADR-0004). The fork shares upstream's full history,
+so an ordinary merge brings in every change to code Omalogi has not touched;
+only files Omalogi deleted or edited need attention.
 
-## Pull paths (in scope)
+## Ownership
 
-- `crates/openlogi-hidpp/`
-- `crates/openlogi-hidpp-derive/`
-- `crates/openlogi-device/`
-- `crates/openlogi-device-registry/`
-- `crates/openlogi-core/`
-- `crates/openlogi-fixture/` (test fixtures for the above)
+**Upstream-pulled** — take upstream's version; do not edit here except for the
+listed deltas:
 
-Everything else (`hook`, `inject`, `agent`, `desktop`, `overlay`,
-`camera`, `hid`, `permissions`, `xtask`, docs) is Omalogi-owned and never
-merged from upstream.
+- `crates/openlogi-hidpp/`, `crates/openlogi-hidpp-derive/`
+- `crates/openlogi-device/`, `crates/openlogi-device-registry/`
+- `crates/openlogi-core/` — delta: `src/brand.rs` (`APP_NAME` and the
+  repository/help/release URLs)
+- `crates/openlogi-fixture/`
+- `crates/openlogi-hid/` (keeps upstream's macOS/Windows transport code)
+- `crates/openlogi-ipc/`, `crates/openlogi-agent-core/`
+- `crates/openlogi-cli/`, `crates/openlogi/`
+- `crates/openlogi-ui/` — delta: the product name in `locales/*.toml`; after
+  a merge, re-run `sed -i 's/OpenLogi/Omalogi/g' crates/openlogi-ui/locales/*.toml`
+- `crates/openlogi-assets/` — delta: `src/http.rs` (User-Agent names Omalogi)
+
+**Omalogi-owned** — Linux-only rewrites; keep ours and port upstream's
+Linux-relevant fixes by hand:
+
+- `crates/openlogi-hook/`, `crates/openlogi-inject/`, `crates/openlogi-agent/`,
+  `crates/openlogi-desktop/`, `crates/openlogi-overlay/`,
+  `crates/openlogi-camera/`, `crates/openlogi-permissions/`, `xtask/`
+- `README.md`, `docs/`, `.github/`, `.agents/`, `AGENTS.md`, `packaging/`,
+  `assets/`, `devenv.nix`, `.cargo/config.toml`
 
 ## Procedure
 
 ```sh
 git fetch upstream --tags
-# inspect first: what touched the protocol paths since our last pull?
-git log --oneline <last-pull-tag>..upstream/<new-tag> \
-  -- crates/openlogi-hidpp crates/openlogi-device \
-     crates/openlogi-device-registry crates/openlogi-core \
-     crates/openlogi-fixture
-# merge just those paths (ours wins everywhere else by construction —
-# those trees don't exist upstream in conflicting form):
-git merge -X subtree=crates/openlogi-hidpp upstream/<new-tag>  # repeat per path,
-# …or cherry-pick the protocol commits listed by the log above.
-cargo test -p openlogi-inject -p openlogi-hook -p openlogi-device \
-  -p openlogi-core -p openlogi-hidpp
+git switch -c pull/upstream-vX.Y.Z master
+git merge --no-ff --no-commit vX.Y.Z
+
+# 1. Files Omalogi deleted that upstream changed: keep them deleted.
+git status --porcelain | awk '$1 == "DU" { print $2 }' | xargs -r git rm -q
+
+# 2. New upstream files for the removed platforms (macOS/Windows backends,
+#    bundling, signing, release workflows) arrive as clean additions.
+#    Review the list and `git rm` what belongs to a deleted platform.
+git diff --cached --name-only --diff-filter=A
+
+# 3. Resolve the remaining conflicts by the ownership table above. For an
+#    Omalogi-owned file, read upstream's change (`git log -p ORIG_HEAD..vX.Y.Z
+#    -- <path>`) and port only what applies on Linux.
+
+# 4. Prove the tree.
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo xtask ci
 ```
 
-Record the pulled tag in `CHANGELOG.md`.
+Commit as `chore: merge upstream vX.Y.Z` and note the tag in `CHANGELOG.md`.
 
-## Conflict policy
+## Shims
 
-- Conflict inside a pull path: resolve in favor of upstream, then re-apply
-  any Omalogi delta (there should be none — we don't touch these crates).
-- Upstream commit touching pull paths *and* shell crates: take the pull-path
-  hunks only (`git checkout upstream/<tag> -- <pull paths>` for those
-  files, review the diff, commit).
-- A protocol change that alters the `Effect` IR seam: write the shim in
-  `inject/linux.rs`, note it in the changelog, and pin it with a test next
-  to `hyprland_table_pins_helper_argv`.
+When upstream changes an API that an upstream-pulled crate calls on an
+Omalogi-owned crate (e.g. `openlogi-agent-core` → `openlogi-hook` /
+`openlogi-inject`), add the shim on the Omalogi side — the way
+`openlogi_hook::frontmost_safari_pid` and `openlogi_inject::ax_navigate_browser`
+remain as Linux no-ops — rather than editing the pulled crate.

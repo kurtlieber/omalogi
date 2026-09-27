@@ -16,8 +16,9 @@ openlogi diag lighting ff0000 # solid colour for a wired RGB keyboard (any RRGGB
 Running `openlogi` with no subcommand defaults to `list`. Set
 `OPENLOGI_LOG=debug` for verbose tracing in the CLI, GUI, or agent.
 
-Asset synchronization probes `assets.openlogi.org`, the versioned Cloudflare
-Pages release alias, and the pinned jsDelivr npm release concurrently. The first
+Asset synchronization probes the upstream OpenLogi project's asset mirrors —
+`assets.openlogi.org`, the versioned Cloudflare Pages release alias, and the
+pinned jsDelivr npm release — concurrently. The first
 mirror with a valid catalog supplies every file for that synchronization run.
 Set `OPENLOGI_ASSETS` or pass `openlogi assets sync --base <URL>` to use one
 uniform asset origin instead of automatic mirror selection.

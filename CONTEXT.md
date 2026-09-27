@@ -16,12 +16,14 @@ Glossary only. No implementation details.
 - **Gesture button**: the physical Logitech button assigned the gesture role
   (on the M720 Triathlon, the button behind the scroll wheel). Press-and-move
   produces directional gestures; a plain click is the Click action.
-- **Protocol crates**: `openlogi-hidpp`, `openlogi-device`,
-  `openlogi-device-registry`, `openlogi-core`. Hardware knowledge lives here.
-  Pulled from upstream on release tags; never forked divergently.
-- **Shell crates**: everything that touches the OS or screen
-  (`openlogi-inject`, `openlogi-hook`, `openlogi-agent`, desktop, overlay).
-  Omalogi-owned on the Linux path; upstream changes here are *not* pulled.
+- **Upstream-pulled crates**: the protocol, device, transport, IPC, and
+  shared-agent crates (`openlogi-hidpp`, `openlogi-device`,
+  `openlogi-device-registry`, `openlogi-core`, `openlogi-hid`,
+  `openlogi-ipc`, `openlogi-agent-core`, …). Hardware knowledge lives here.
+  Merged from upstream release tags; never forked divergently.
+- **Omalogi-owned crates**: everything that touches the OS or screen
+  (`openlogi-inject`, `openlogi-hook`, `openlogi-agent`, desktop, overlay,
+  camera, permissions). Linux-only; upstream changes are ported by hand.
 - **Helper**: an Omarchy/`hyprctl` executable invoked with fixed argv and no
   shell (`hyprland_command` table in `inject/linux.rs`).
 - **Legacy chord**: the pre-fork GNOME/KDE key synthesis

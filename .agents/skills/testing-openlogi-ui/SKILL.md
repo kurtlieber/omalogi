@@ -24,13 +24,12 @@ Choose evidence that proves the affected behavior, then inspect the rendered res
 
 ## Run without hardware
 
-Run from the repository root. These examples use POSIX environment syntax;
-on Windows, set the same variables using the active shell's syntax.
+Run from the repository root.
 
 For isolated controls in a debug build:
 
 ```sh
-OPENLOGI_PROFILE=dev OPENLOGI_DEV_AGENT=0 OPENLOGI_COMPONENT_GALLERY=1 cargo run -p openlogi-desktop
+OPENLOGI_PROFILE=dev OPENLOGI_COMPONENT_GALLERY=1 cargo run -p openlogi-desktop
 ```
 
 For app workflows, start the mock first. After it binds its endpoint, start the
@@ -38,16 +37,13 @@ desktop in a second terminal or managed service:
 
 ```sh
 OPENLOGI_PROFILE=dev cargo run -p openlogi-agent --bin openlogi-agent-mock
-OPENLOGI_PROFILE=dev OPENLOGI_DEV_AGENT=0 cargo run -p openlogi-desktop
+OPENLOGI_PROFILE=dev cargo run -p openlogi-desktop
 ```
 
 - Keep all test processes on the same profile. Do not use `prod` to bypass a lock.
   Identify a conflicting process before stopping it; preserve installed apps.
-- On macOS, `cargo run` refreshes the dev bundle; `cargo build` alone does not.
-  Quit the previous dev GUI before relaunching. `OPENLOGI_DEV_AGENT=0` prevents the
-  runner from replacing the mock with real helpers. Linux/Windows use the raw binary.
-- If macOS rejects an external production agent, confirm separate profiles before
-  using `OPENLOGI_ALLOW_EXTERNAL_AGENT=1`; do not bypass a same-profile conflict.
+- Quit the previous dev GUI before relaunching; a second instance exits on the
+  singleton lock.
 - Confirm the connected agent has the `-mock` version suffix before changing settings.
   If it disconnects, restore the mock before continuing; the GUI can auto-start helpers.
 - For repeatable captured inventory, append `-- --fixture <profile.json>` to the
@@ -75,7 +71,8 @@ cargo test -p openlogi-desktop gallery_renders_without_application_state
 - For localized UI, change language while the view is open and inspect cached text.
   Apply the catalog and wiring checks in [i18n rules](../../../.agents/rules/i18n.md).
 - Apply [change verification](../verifying-openlogi-changes/SKILL.md) once stable.
-  Desktop tests run on macOS in CI; a Linux CI pass does not cover those tests.
+  CI's Linux test job excludes the desktop crate; run `cargo test -p openlogi-desktop`
+  locally.
 
 Report commands and results, exercised states, and an inspected screenshot for
 visual work. Separate in-process tests, running-app checks, and real-hardware checks.

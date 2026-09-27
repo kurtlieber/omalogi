@@ -35,13 +35,10 @@ Find the first failing layer before proposing a permission change or code fix.
 | Compatible agent snapshot has the device, GUI does not | IPC delivery, desktop state, capability filtering, presentation |
 | Device appears, one feature fails | Reported feature ID/version, capability gating, then the owning operation |
 
-For macOS symptoms, load the existing
-[permission skill](../../../.claude/skills/openlogi-macos-permissions/SKILL.md).
-Use its identity map and read-only diagnosis; do not duplicate TCC procedures.
-For Linux access failures, inspect the relevant `hidraw`, `input/event`, and
+For access failures, inspect the relevant `hidraw`, `input/event`, and
 `uinput` permissions using [Linux access guidance](../../../docs/INSTALL-linux.md).
 Do not install rules, change ACLs, reset permissions, or stop another app without
-authorization. Do not diagnose a Windows failure from a macOS permission model.
+authorization.
 
 ## Choose the smallest diagnostic
 

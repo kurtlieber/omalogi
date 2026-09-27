@@ -1,87 +1,80 @@
-# Installing OpenLogi on Linux
+# Installing Omalogi
+
+Omalogi targets [Omarchy](https://omarchy.org/) (Arch Linux + Hyprland). It
+builds and runs on other Linux distributions, but system actions only map to
+native commands on Hyprland.
 
 > [!NOTE]
-> Linux support is in active development. HID++ device enumeration supports
-> **Logi Bolt** (USB PID `0xC548`) and **Logi Unifying** (PID `0xC52B` and
-> others) receivers, as well as Bluetooth-direct devices.
+> HID++ device enumeration supports **Logi Bolt** (USB PID `0xC548`) and
+> **Logi Unifying** (PID `0xC52B` and others) receivers, as well as
+> Bluetooth-direct devices — inherited from upstream OpenLogi.
 
 ## Prerequisites
 
-- **Quit Solaar** (or any other Logitech manager) before starting OpenLogi — the
+- **Quit Solaar** (or any other Logitech manager) before starting Omalogi — the
   two applications fight over HID++ access.
-- A kernel with `hidraw` and `uinput` module support (standard on all major
-  distros).
-- `systemd` + `udev` (standard on Ubuntu, Fedora, Arch, Debian, openSUSE, …).
-- GLIBC 2.35 or newer for the pre-built packages (Ubuntu 22.04 baseline).
-
-## NixOS
-
-The repository Flake provides a package and a NixOS module for x86_64 and
-aarch64 Linux. Importing the module is preferred over adding the package to
-`environment.systemPackages` by itself: the module also registers the udev
-rules required for device access and manages the agent's user service.
-
-```nix
-{
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.openlogi = {
-    url = "github:AprilNEA/OpenLogi";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
-
-  outputs = { nixpkgs, openlogi, ... }: {
-    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux"; # or aarch64-linux
-      modules = [
-        openlogi.nixosModules.default
-        {
-          programs.openlogi = {
-            enable = true;
-            # Starts openlogi-agent with graphical-session.target by default.
-            launchAtLogin = true;
-          };
-        }
-      ];
-    };
-  };
-}
-```
-
-Set `programs.openlogi.launchAtLogin = false` to install the package and udev
-rules without automatically starting the agent. It remains available as
-`systemctl --user start openlogi-agent.service`.
-
-For a build without installing the module:
-
-```sh
-nix build github:AprilNEA/OpenLogi#openlogi
-```
+- A kernel with `hidraw` and `uinput` module support (standard on Arch).
+- `systemd` + `udev`.
+- For the Hyprland actions: `hyprctl` and Omarchy's `omarchy-*` helpers on the
+  agent's `PATH` (stock on Omarchy).
 
 ## Build from source
 
-Pre-built `.deb` and `.rpm` packages are available on the
-[releases page](https://github.com/AprilNEA/OpenLogi/releases/latest) — see
-the main [README](../README.md#linux) for the package-based install. To build
-from source instead, use the stable Rust toolchain:
+There are no pre-built Omalogi packages yet. Build with the stable Rust
+toolchain:
 
 ```sh
-git clone https://github.com/AprilNEA/OpenLogi
-cd OpenLogi
-cargo build --release -p openlogi -p openlogi-desktop -p openlogi-agent
+git clone https://github.com/kurtlieber/omalogi
+cd omalogi
+cargo build --release -p openlogi -p openlogi-desktop -p openlogi-agent -p openlogi-overlay
 ```
 
-Four production executables land in `target/release/`:
+Crate and binary names stay `openlogi-*` on purpose (see
+[ADR-0001](adr/0001-keep-crate-names.md)). Four production executables land in
+`target/release/`:
 
 | Binary | Role |
 |---|---|
 | `openlogi` | CLI — inventory, diagnostics, asset sync |
 | `openlogi-desktop` | Desktop GUI |
 | `openlogi-overlay` | Actions Ring overlay helper |
-| `openlogi-agent` | Background agent — HID++ loop, input hook |
+| `openlogi-agent` | Background agent — HID++ loop, input hook, Hyprland actions |
+
+To build an Arch package instead (`.pkg.tar.zst`, plus `.deb`/`.rpm`):
+
+```sh
+cargo xtask linux package
+sudo pacman -U target/release/openlogi-*.pkg.tar.zst
+```
+
+## NixOS
+
+The repository Flake provides a package and a NixOS module for x86_64 and
+aarch64 Linux:
+
+```nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.omalogi = {
+    url = "github:kurtlieber/omalogi";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs = { nixpkgs, omalogi, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux"; # or aarch64-linux
+      modules = [
+        omalogi.nixosModules.default
+        { programs.openlogi.enable = true; }
+      ];
+    };
+  };
+}
+```
 
 ## Device access: udev rules
 
-OpenLogi needs:
+Omalogi needs:
 
 - **Write access to `/dev/uinput`** — to create the virtual input device for
   button remapping.
@@ -171,10 +164,10 @@ binary.
 
 Either way `~/.config/systemd/user/openlogi-agent.service` stays yours: systemd
 ranks it above both locations, so a unit you write there overrides whatever
-OpenLogi does. Use `systemctl --user edit openlogi-agent.service` for a drop-in
+Omalogi does. Use `systemctl --user edit openlogi-agent.service` for a drop-in
 that survives package upgrades.
 
-OpenLogi never overwrites or deletes a unit it did not generate, at either
+Omalogi never overwrites or deletes a unit it did not generate, at either
 location, and it only turns off an autostart it turned on. Enabling the service
 yourself with the command above keeps working regardless of the GUI toggle.
 
@@ -192,5 +185,5 @@ openlogi-desktop
 
 | Limitation | Status |
 |---|---|
-| Wayland: per-application profile switching | Requires XWayland (`WM_CLASS` lookup uses X11) |
+| Per-application profiles on Hyprland | Keyed by the Wayland `app_id` (e.g. `org.mozilla.firefox`) via wlr-foreign-toplevel; XWayland apps by `WM_CLASS` |
 | Button capture: middle / mode-shift / thumbwheel | Side buttons only today |

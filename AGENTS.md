@@ -1,10 +1,20 @@
-# OpenLogi — Agent Guide
+# Omalogi — Agent Guide
 
-OpenLogi is a native, local-first alternative to Logitech Options+ written in Rust:
-button remapping, DPI, SmartShift, and per-app profiles for Logitech HID++ devices
-(Bolt/Unifying receiver, Bluetooth-direct, wired) — no account, no telemetry, plain-TOML
-config. macOS and Linux are first-class; Windows is a young but shipping port.
-Dual-licensed MIT/Apache-2.0; the `design/` brand assets are proprietary.
+Omalogi is an Omarchy/Hyprland-only hard fork of
+[OpenLogi](https://github.com/AprilNEA/OpenLogi), a native, local-first alternative
+to Logitech Options+ written in Rust: button remapping, DPI, SmartShift, and
+per-app profiles for Logitech HID++ devices (Bolt/Unifying receiver,
+Bluetooth-direct, wired) — no account, no telemetry, plain-TOML config. Linux is
+the only platform; system actions dispatch to Hyprland/Omarchy helpers.
+Dual-licensed MIT/Apache-2.0.
+
+Fork contract — read before changing anything:
+
+- [CONTEXT.md](CONTEXT.md) is the glossary (Upstream, Protocol crates, Shell
+  crates, Omarchy action).
+- Protocol crates stay byte-identical to upstream and are pulled on upstream
+  release tags; never edit them here. Procedure: [docs/PROTOCOL-PULLS.md](docs/PROTOCOL-PULLS.md).
+- Decisions live in [docs/adr/](docs/adr/). Crate names stay `openlogi-*` (ADR-0001).
 
 The developer handbook (toolchain, packaging, release pipeline) is
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). This file is the agent-facing contract:
@@ -29,31 +39,30 @@ access devices directly.
 | `crates/openlogi-hidpp-derive` | Private derive macro for `openlogi-hidpp` feature boilerplate |
 | `crates/openlogi-fixture` | Host-free fixture schemas, synthetic identity policy, canonical semantic data, and privacy/relationship verification |
 | `crates/openlogi-device` | The HID++ device layer: enumeration, probing, writes, sessions, pairing. Knows no host — expressed against `HidBackend` |
-| `crates/openlogi-hid` | That layer wired to this host: `async-hid` transport, macOS Input Monitoring, the on-disk probe cache |
-| `crates/openlogi-camera` | Cross-platform Logitech UVC enumeration, capture, controls, and Camera-permission APIs |
+| `crates/openlogi-hid` | That layer wired to this host: `async-hid` transport, the on-disk probe cache (upstream-pulled; keeps upstream's other-OS code) |
+| `crates/openlogi-camera` | Logitech UVC enumeration, capture, and controls over V4L2 |
 | `crates/openlogi-assets` | Device-render registry + cached fetch from OpenLogi asset mirrors |
 | `crates/openlogi-cli` | CLI dispatch: agent-backed inventory when available, plus direct hardware diagnostics |
-| `crates/openlogi-hook` | OS input capture: CGEventTap / evdev+uinput / WH_MOUSE_LL |
-| `crates/openlogi-inject` | OS input synthesis: CGEvent / uinput+MPRIS / SendInput |
+| `crates/openlogi-hook` | OS input capture: evdev grab + uinput re-injection |
+| `crates/openlogi-inject` | OS input synthesis: uinput + MPRIS, and the Hyprland/Omarchy helper table (`inject/linux.rs`) |
 | `crates/openlogi-agent-core` | Shared agent orchestration: hook runtime, HID++ writes, DPI cycle, Actions Ring session state |
 | `crates/openlogi-ipc` | The tarpc IPC contract (`src/ipc.rs`) + its local-socket transport, shared by the agent and its clients |
 | `crates/openlogi-agent` | The `openlogi-agent` binary — runtime HID/input server |
-| `crates/openlogi-permissions` | Privacy-permission status + System-Settings deep links: macOS TCC reads, Linux device-file probes. Reads only — never prompts |
+| `crates/openlogi-permissions` | Input-device access status: `/dev/uinput` and Logitech `/dev/hidraw*` probes. Reads only — never prompts |
 | `crates/openlogi-ui` | Presentation shared by the two GPUI processes: action icons, colors, the GPUI asset source, and locale catalogs. Currently depends on `gpui`, not `gpui-component` |
 | `crates/openlogi-desktop` | GPUI + gpui-component desktop app — polls the agent, no HID/input I/O |
 | `crates/openlogi-overlay` | The `openlogi-overlay` binary — cursor-centred Actions Ring, a pure IPC client |
-| `xtask` | `cargo xtask` maintenance: bundling, packaging, release manifest |
+| `xtask` | `cargo xtask` maintenance: CI reproduction, Linux packaging, release manifest |
 
 - IPC clients ↔ agent speak tarpc/bincode over an `interprocess` local socket. The wire
   format is versioned and **append-only** — read `crates/openlogi-ipc/AGENTS.md` before
   touching it.
-- Three processes ship in the bundle — GUI, agent, overlay — and the overlay is a
+- Three processes ship in the package — GUI, agent, overlay — and the overlay is a
   *sibling* of the GUI, not a part of it: it links `openlogi-ui`, never
   `openlogi-desktop`. Anything both need goes in `openlogi-ui`, and every dependency
   added there lands in the overlay too (`.agents/rules/gui.md` has the rule).
-- Platform code is cfg-gated per crate (`[target.'cfg(target_os = …)'.dependencies]`).
-  `.agents/rules/objc-ffi.md` is the contract for the workspace's macOS native FFI and
-  maintains the canonical file-by-file inventory — read it before editing that surface.
+- Linux is the only target. Omalogi-owned crates carry no macOS/Windows code; the
+  upstream-pulled crates keep theirs untouched (`.agents/rules/cross-platform.md`).
 
 ## Evidence and root-cause discipline
 
@@ -129,19 +138,11 @@ A skipped job is **not** a pass. These procedures do not authorize a push.
 
 ### Running the app
 
-- Dev-run with `cargo run -p openlogi-desktop` — a cargo runner wraps the build into
-  `target/dev/OpenLogi.app` with the same identity, helper and plist tables packaging
-  uses. The macOS GUI build needs full Xcode for GPUI's Metal shaders; devenv sets the
-  env when present (`direnv reload` if the shader compile fails there).
-- `cargo build` does NOT refresh that bundle, and a second instance exits on the
-  singleton lock: quit the old instance and re-`run` before judging a UI change
-  "not applied".
-- Each dev run first stops the agent and overlay the previous one left behind — they
-  are LaunchServices-launched (for their own TCC identity), not children of the GUI,
-  and a surviving agent relaunches itself ~20 s later — then starts the freshly
-  built agent and waits for its socket, so the GUI's first IPC connect succeeds
-  instead of exercising the production spawn-on-unreachable fallback.
-  `OPENLOGI_DEV_AGENT=0` opts out of all of it.
+- Dev-run with `cargo run -p openlogi-agent` in one terminal and
+  `cargo run -p openlogi-desktop` in another. A second instance of either exits on
+  the singleton lock: stop the packaged `openlogi-agent.service`
+  (`systemctl --user stop openlogi-agent`) and quit the old GUI before judging a
+  change "not applied".
 - No hardware attached? `cargo run -p openlogi-agent --bin openlogi-agent-mock` serves
   a scripted inventory over the dev IPC socket, so the GUI runs unmodified and the
   production app stays untouched.
@@ -162,7 +163,7 @@ loaded for any Rust or `Cargo.toml` edit.
 - Conventional commits: `type(scope): imperative lowercase description`. Types in use:
   `feat fix refactor chore docs ci perf style build test`. Scopes are crate short names
   (`gui agent hidpp hid core hook ipc cli assets xtask`) or cross-cutting concerns
-  (`release ci i18n windows linux macos tray infra`). `i18n` is a scope, not a type.
+  (`release ci i18n linux hyprland infra`). `i18n` is a scope, not a type.
 - Branches: `type/kebab-description` off `master`. Substantial or risky work goes in a
   worktree so parallel work doesn't collide; trivial fixes may go straight to master.
 - Commits are small and focused — split unrelated concerns into separate commits; never
@@ -179,11 +180,11 @@ loaded for any Rust or `Cargo.toml` edit.
 
 ## Releases
 
-release-plz drives releases: one unified workspace version, ONE root `CHANGELOG.md`
-(never per-crate changelogs), and a single `v{version}` tag that only release-plz
-creates — **never hand-create the tag**. Published GitHub releases are immutable:
-never re-run a failed release job or re-dispatch on an existing tag.
-`release-plz.toml` is the versioning contract — don't trim it.
+Omalogi has no release pipeline yet: upstream's release, signing, and
+release-plz workflows depend on upstream's secrets and were removed. The
+workspace keeps one unified version and ONE root `CHANGELOG.md` (never per-crate
+changelogs); `release-plz.toml` and `.config/cliff.toml` remain as the
+versioning contract for when a Linux release workflow is added.
 
 ## Maintaining agent guidance
 
@@ -212,7 +213,7 @@ cross-client automatic loader. Claude Code discovers those files through the
 this index; do not assume they interpret Claude's `paths` field.
 Keep this index as ordinary links, not unconditional imports of every rule.
 See [agent guidance setup](docs/DEVELOPMENT.md#agent-guidance) for checkout and
-client-loading checks, including Windows symlink requirements.
+client-loading checks.
 
 | Area | Rule file |
 |---|---|
@@ -228,7 +229,6 @@ client-loading checks, including Windows symlink requirements.
 | `crates/openlogi-device/**`, `crates/openlogi-hid/**` (the HID++ layer seam) | `crates/openlogi-device/AGENTS.md` |
 | `crates/openlogi-hook/**` (event taps) | `crates/openlogi-hook/AGENTS.md` |
 | `xtask/**`, `packaging/**`, `.github/scripts/**` | `xtask/AGENTS.md` (+ `xtask/README.md`) |
-| macOS native FFI (the rule carries the canonical path inventory) | [.agents/rules/objc-ffi.md](.agents/rules/objc-ffi.md) |
 
 ## Task skills — invoke when the task matches
 
@@ -245,7 +245,6 @@ contains only OpenLogi integration constraints and verification entrypoints.
 | missing HID devices, failed opens or pairing, stale inventory, reconnect failures, unsupported features, or CLI/GUI disagreement | [diagnosing-openlogi-devices](.agents/skills/diagnosing-openlogi-devices/SKILL.md) |
 | planning a regression test, selecting checks after changes, or verifying an authorized commit/push | [verifying-openlogi-changes](.agents/skills/verifying-openlogi-changes/SKILL.md) |
 | recording, reviewing, or contributing device profiles and HID++ cassettes | [contributing-device-fixtures](.agents/skills/contributing-device-fixtures/SKILL.md) |
-| a macOS report of no devices / "Failed to open device" / which permission to grant, and any change to the permission, helper-launch, or bundle-signing code | `.claude/skills/openlogi-macos-permissions/SKILL.md` |
 
 The four OpenLogi workflow skills are maintained locally with the code. Keep
 mandatory invariants in this file and the scoped rules; link to those rules from

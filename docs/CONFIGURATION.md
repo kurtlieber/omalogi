@@ -1,14 +1,12 @@
 # Configuration
 
-OpenLogi stores settings as plain TOML. The GUI and agent read the same file:
-
-- macOS and Linux: `$XDG_CONFIG_HOME/openlogi/config.toml` (normally
-  `~/.config/openlogi/config.toml`)
-- Windows: `%USERPROFILE%\.config\openlogi\config.toml`
+Omalogi stores settings as plain TOML in `$XDG_CONFIG_HOME/openlogi/config.toml`
+(normally `~/.config/openlogi/config.toml`). The GUI and agent read the same
+file, and the format is upstream OpenLogi's, so a config moves between the two.
 
 The complete, tested example is [config.example.toml](config.example.toml).
 Copy only the sections you need and replace its example physical device keys
-with keys already written by OpenLogi for your devices.
+with keys already written by Omalogi for your devices.
 
 ## Editing and recovery
 
@@ -52,10 +50,10 @@ optional physical device key.
 - `mouse_profile_target`: `pointer` (default, including existing configs that
   omit this preference) or `focused`. Mouse button profiles follow the window
   under the pointer; the desktop uses the global bindings. Keyboard profiles
-  continue to follow the focused application. Pointer targeting is supported
-  on macOS, Windows, and X11; unsupported sessions such as Wayland use the
-  focused application. An unavailable pointer target is not treated as desktop.
-  OpenLogi never activates a background window to send a shortcut: mouse
+  continue to follow the focused application. Pointer targeting needs X11;
+  on a native Wayland session such as Hyprland mouse profiles use the focused
+  application. An unavailable pointer target is not treated as desktop.
+  Omalogi never activates a background window to send a shortcut: mouse
   bindings that produce keystrokes or run workflows are skipped unless the
   hovered window is focused. Global actions such as desktop switching can run
   without changing application focus.
@@ -78,13 +76,11 @@ Common device fields are:
   `Thumbwheel` is the thumb wheel's capacitive tap — it has no GUI control and
   stays inert unless bound here, because the wheel reports taps from incidental
   thumb contact as well as from deliberate ones
-- `per_app_bindings`: sparse action overlays keyed by macOS bundle id, Linux
-  application id, exact lower-cased Windows executable path, or
-  `exe:<filename>.exe`. The Buttons panel edits these under its Profile
-  selector, which offers applications the agent has seen in front — the only
-  identifiers guaranteed to match, since the four platforms name applications
-  differently and a profile authored under one namespace will not match under
-  another. An overlay holds one action per button; gesture-direction maps live
+- `per_app_bindings`: sparse action overlays keyed by application id — the
+  Wayland `app_id` on Hyprland (e.g. `org.mozilla.firefox`), `WM_CLASS` for
+  XWayland apps. The Buttons panel edits these under its Profile selector,
+  which offers applications the agent has seen in front — the only identifiers
+  guaranteed to match. An overlay holds one action per button; gesture-direction maps live
   in `bindings`
 - `action_ring`: default and complete per-application eight-slot layouts
 - `lighting`, `smartshift`, standalone `light`, and camera controls / profiles
@@ -99,6 +95,9 @@ Common device fields are:
 
 Action names are the serialized Rust variant names, including `Copy`,
 `BrowserBack`, `PlayPause`, `CycleDpiPresets`, and `ShowActionsRing`.
+Window-manager actions (`NextDesktop`, `LockScreen`, `Screenshot`, …) run the
+Hyprland/Omarchy commands listed in the [README](../README.md#hyprland-action-mapping).
+`Cmd` in a shortcut is sent as Ctrl.
 Payload actions use a one-key inline table:
 
 ```toml

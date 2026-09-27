@@ -61,9 +61,9 @@ Three cases where `expect` is wrong and `allow` is correct. Each keeps its `allo
 an `#[expect(clippy::allow_attributes, reason = "see above")]` and a comment saying which
 case applies — riding the same `cfg_attr` predicate when there is one:
 
-- **The lint fires only under some `cfg`.** `platform::os_version` returns `Some(…)` on
-  macOS (so `unnecessary_wraps` fires) and `None` elsewhere (so it does not). An
-  `expect` there is green on macOS and red on the other two lanes.
+- **The lint fires only under some `cfg`.** A function that returns `Some(…)` under
+  one `cfg` and `None` under another fires `unnecessary_wraps` on only one of them,
+  so an `expect` is unfulfilled on the other.
 - **Fulfilment differs between a crate's targets.** A `dead_code` suppression on a
   helper that only the tests call is fulfilled in the `--lib` build and unfulfilled in
   the `--test` build; `--all-targets` compiles both, so one of them always warns. Being
@@ -81,9 +81,6 @@ single suppression when a file converts the same pair of types over and over.
 
 Sweeping for rot is mechanical: rewrite every non-`cfg_attr` `allow(` to `expect(`, run
 clippy, and each "this lint expectation is unfulfilled" is a suppression to delete.
-Do it on all three lanes — `cargo clippy`, `--target x86_64-pc-windows-gnu`, and
-`--target aarch64-unknown-linux-musl` — because CI has no macOS clippy job and a
-platform-gated suppression is only ever evaluated on its own platform.
 
 Encode invariants in the type system instead of checking them at runtime:
 
@@ -164,8 +161,8 @@ House style:
   state shape instead of inventing an independent model.
 - Platform-divergent code: once more than one function diverges, use one module per
   OS selected by a single `cfg` at the module declaration, with a thin facade owning
-  the shared types and dispatch — `inject.rs` → `inject/{macos,linux,windows}.rs`,
-  `autostart.rs` likewise — not a file interleaved with repeated
+  the shared types and dispatch — `inject.rs` → `inject/linux.rs`, `autostart.rs`
+  likewise — not a file interleaved with repeated
   `#[cfg(target_os = …)]` arms. Each platform file implements the same function
   names; a missing one fails that platform's compile, which is the same guarantee a
   trait would give here. Reach for a trait only when implementations genuinely
@@ -198,6 +195,5 @@ naming that trait's methods.
 ## Reproducing CI
 
 `openlogi:check` is the host-OS gate, not the pipeline. To run a `ci.yml` job
-locally: `cargo xtask ci --list` and `.agents/rules/ci.md`. Host
-clippy on macOS does not compile linux cfg; MSRV needs `RUSTUP_TOOLCHAIN`;
-cargo-deny is its own job.
+locally: `cargo xtask ci --list` and `.agents/rules/ci.md`. MSRV needs
+`RUSTUP_TOOLCHAIN`; cargo-deny is its own job.

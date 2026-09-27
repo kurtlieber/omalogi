@@ -152,8 +152,7 @@ rustPlatform.buildRustPackage {
     "--bin=openlogi-overlay"
   ];
 
-  # Match Linux CI's package selection; the desktop interaction suite is
-  # additionally exercised by the macOS test jobs.
+  # Match Linux CI's package selection.
   cargoTestFlags = [
     "--workspace"
     "--exclude=openlogi-desktop"
@@ -215,15 +214,13 @@ rustPlatform.buildRustPackage {
   '';
 
   meta = {
-    description = "Local-first companion for Logitech HID++ peripherals";
-    homepage = "https://github.com/AprilNEA/OpenLogi";
+    description = "Omarchy/Hyprland fork of OpenLogi, a local-first companion for Logitech HID++ peripherals";
+    homepage = "https://github.com/kurtlieber/omalogi";
     license = with lib.licenses; [
       mit
       asl20
     ];
     mainProgram = "openlogi";
-    # Darwin support (the .app bundle, see nixpkgs' `openlogi`) could be
-    # revived here later; this package is authored and tested on Linux.
     platforms = lib.platforms.linux;
   };
 }

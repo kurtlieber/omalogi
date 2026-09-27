@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Omalogi fork of OpenLogi, based on upstream **v0.8.9**. Entries from 0.8.9
+down are upstream OpenLogi's history.
+
+### Added
+- Hyprland/Omarchy dispatch for window-manager actions: workspace switching,
+  lock, full-screen and region screenshots, the Omarchy menu, and the
+  scratchpad, with a fallback to the generic key chords.
+
+### Changed
+- Linux-only: macOS and Windows backends, bundling, signing, and release
+  workflows removed; upstream-pulled crates keep their platform code so
+  upstream release tags merge cleanly (ADR-0004).
+- Product name, icon, packaging metadata, and in-app links point at Omalogi.
+
+### Fixed
+- Show Desktop used a Hyprland dispatcher that does not exist
+  (`workspace.toggle_n`); it now uses `workspace.toggle_special`.
+- Screenshot opened the interactive picker; it now captures the full screen.
+- A long-running helper (screenshot preview, lock teardown) no longer stalls
+  later button actions.
+
 ## [0.8.9] - 2026-09-27
 
 ### Fixed

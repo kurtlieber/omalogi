@@ -21,8 +21,6 @@ Produce a sanitized, verifiable fixture without treating replay as proof of hard
 4. Match the CLI's `OPENLOGI_PROFILE` to the agent that owns the target. Confirm
    permission to interrupt the user's agent/apps and perform direct capture before
    entering the raw phase. Use `--profile-only` when direct capture is not authorized.
-   Load the [macOS permission skill](../../../.claude/skills/openlogi-macos-permissions/SKILL.md)
-   on macOS; an agent grant does not authorize direct CLI access.
 
 ## Capture through the existing wizard
 

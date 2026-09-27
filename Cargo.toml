@@ -38,9 +38,9 @@ edition = "2024"
 # CI matrix keeps the number honest for `cargo install`.
 rust-version = "1.98"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/AprilNEA/OpenLogi"
-authors = ["AprilNEA <dev@aprilnea.me>"]
-description = "Lightweight, local-first alternative to Logitech Options+ for HID++ devices"
+repository = "https://github.com/kurtlieber/omalogi"
+authors = ["AprilNEA <dev@aprilnea.me>", "Kurt Lieber <kurt@lieber.org>"]
+description = "Omarchy/Hyprland fork of OpenLogi: a local-first Logitech HID++ device manager"
 
 [workspace.dependencies]
 hidpp = { package = "openlogi-hidpp", path = "crates/openlogi-hidpp", version = "0.8.9" }
