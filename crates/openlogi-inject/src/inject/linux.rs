@@ -205,8 +205,12 @@ fn dispatch_hyprland(action: &Action, native: NativeAction) -> bool {
 /// Pure table so tests pin it without spawning processes.
 fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'static str])> {
     match native {
-        NativeAction::PreviousDesktop => Some(("hyprctl", &["dispatch", "workspace", "e-1"])),
-        NativeAction::NextDesktop => Some(("hyprctl", &["dispatch", "workspace", "e+1"])),
+        NativeAction::PreviousDesktop => {
+            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"]))
+        }
+        NativeAction::NextDesktop => {
+            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"]))
+        }
         // NOTE: no logind attempt here — `LockSession` succeeding does not
         // mean hyprlock ran. `omarchy-system-lock` is the lock path.
         NativeAction::LockScreen => Some(("omarchy-system-lock", &[])),
@@ -214,12 +218,15 @@ fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'s
         NativeAction::CaptureRegion => Some(("omarchy-capture-screenshot", &["region"])),
         NativeAction::LaunchpadShow => Some(("omarchy-menu", &["toggle"])),
         NativeAction::ShowDesktop => {
-            Some(("hyprctl", &["dispatch", "togglespecialworkspace"]))
+            // Omarchy's "show desktop" is its scratchpad (SUPER+S):
+            // toggle the named special workspace, don't guess at raw
+            // togglespecialworkspace.
+            Some(("hyprctl", &["eval", "hl.dispatch(hl.dsp.workspace.toggle_n(\"scratchpad\"))"]))
         }
-        // Requires the hyprexpo plugin; failure falls through to the no-op.
-        NativeAction::MissionControl => Some(("hyprctl", &["dispatch", "hyprexpo:toggle"])),
-        // No Hyprland equivalent; Sleep never reaches here (see above).
-        NativeAction::AppExpose | NativeAction::Sleep => None,
+        // Neither has an Omarchy equivalent: hyprexpo/overview is not
+        // installed (probed 2026-09-27 — no expo/overview anywhere in
+        // Omarchy stock or user config); Sleep never reaches here (see above).
+        NativeAction::MissionControl | NativeAction::AppExpose | NativeAction::Sleep => None,
     }
 }
 
@@ -839,18 +846,18 @@ mod tests {
     fn hyprland_table_pins_helper_argv() {
         use NativeAction::*;
         let table = [
-            (PreviousDesktop, "hyprctl", &["dispatch", "workspace", "e-1"][..]),
-            (NextDesktop, "hyprctl", &["dispatch", "workspace", "e+1"][..]),
+            (PreviousDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"][..]),
+            (NextDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"][..]),
             (LockScreen, "omarchy-system-lock", &[][..]),
             (Screenshot, "omarchy-capture-screenshot", &[][..]),
             (CaptureRegion, "omarchy-capture-screenshot", &["region"][..]),
             (LaunchpadShow, "omarchy-menu", &["toggle"][..]),
-            (ShowDesktop, "hyprctl", &["dispatch", "togglespecialworkspace"][..]),
-            (MissionControl, "hyprctl", &["dispatch", "hyprexpo:toggle"][..]),
+            (ShowDesktop, "hyprctl", &["eval", "hl.dispatch(hl.dsp.workspace.toggle_n(\"scratchpad\"))"][..]),
         ];
         for (action, program, args) in table {
             assert_eq!(hyprland_command(action), Some((program, args)));
         }
+        assert_eq!(hyprland_command(MissionControl), None);
         assert_eq!(hyprland_command(AppExpose), None);
         assert_eq!(hyprland_command(Sleep), None);
         // Screenshot and region capture must not collapse to one command.

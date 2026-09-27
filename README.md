@@ -152,12 +152,12 @@ manual / source installs, and distros without systemd.
 
 | Button action | Omarchy command |
 |---|---|
-| Previous / Next Desktop | `hyprctl dispatch workspace e-1` / `e+1` |
+| Previous / Next Desktop | `hyprctl` Lua: `hl.dsp.focus({workspace='e-1'/'e+1'})` |
 | Lock Screen | `omarchy-system-lock` |
 | Screenshot / Capture Region | `omarchy-capture-screenshot` / `… region` |
 | Launcher | `omarchy-menu toggle` |
-| Show Desktop | `hyprctl dispatch togglespecialworkspace` |
-| Mission Control | `hyprctl dispatch hyprexpo:toggle` (needs the hyprexpo plugin) |
+| Show Desktop | scratchpad toggle, `hl.dsp.workspace.toggle_n("scratchpad")` (same as SUPER+S) |
+| Mission Control / App Expose | unmapped — no Omarchy equivalent |
 
 Helpers run with fixed argv and fall back to the legacy chord when missing
 or failing. `AppExpose` has no Hyprland equivalent. Sleep uses logind
