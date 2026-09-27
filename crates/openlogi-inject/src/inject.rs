@@ -240,11 +240,14 @@ fn run_workflow(steps: &[WorkflowStep]) {
 /// handled at the hook/HID layer, logging a trace here.
 ///
 /// On Linux, key and scroll events are injected via a lazily-created `uinput`
-/// virtual device. Mouse clicks inject `BTN_*` events. macOS-only window
-/// manager actions (`MissionControl`, `AppExpose`, `ShowDesktop`,
-/// `LaunchpadShow`) have no universal Linux equivalent and are silently
-/// skipped (debug-logged). `CustomShortcut` maps macOS `kVK_*` codes to
-/// Linux key codes; macOS Cmd maps to Ctrl.
+/// virtual device. Mouse clicks inject `BTN_*` events. Window-manager actions
+/// route to Hyprland/Omarchy helpers on sessions exposing
+/// `HYPRLAND_INSTANCE_SIGNATURE` (`hyprctl`, `omarchy-system-lock`,
+/// `omarchy-capture-screenshot`, `omarchy-menu`) with legacy-chord fallback;
+/// off Hyprland the GNOME/KDE chords apply and actions with no universal
+/// Linux equivalent (`MissionControl`, `ShowDesktop`, `LaunchpadShow`,
+/// `AppExpose`) are silently skipped (debug-logged). `CustomShortcut` maps
+/// macOS `kVK_*` codes to Linux key codes; macOS Cmd maps to Ctrl.
 ///
 /// On Windows, key and mouse events are synthesised via `SendInput`. The
 /// macOS window-manager actions map to their Windows equivalents (e.g.

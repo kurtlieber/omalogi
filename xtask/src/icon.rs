@@ -5,14 +5,11 @@
 //! able to do with that set — compile it into whatever its packages read, put
 //! the result inside a package, and prove it arrived.
 //!
-//! macOS is the pipeline that exists ([`macos::AppBundle`]). The other two get
-//! their icons without a build step today: Windows embeds `design/icon/
-//! openlogi.ico` into each executable through its build script, and Linux
-//! installs `design/icon/openlogi.png` from `packaging/linux/nfpm.yaml`. When
-//! either grows one — a per-variant `.ico`, a hicolor tree — it implements this
+//! macOS was the pipeline that existed. The remaining platforms get
+//! their icons without a build step today: Linux installs
+//! `packaging/linux` icons from `packaging/linux/nfpm.yaml`. If it ever
+//! grows one — a hicolor tree — it implements this
 //! trait rather than inventing its own vocabulary.
-
-pub(crate) mod macos;
 
 use std::path::Path;
 

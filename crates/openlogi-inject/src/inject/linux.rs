@@ -129,14 +129,35 @@ fn dispatch_media(key: MediaKey) {
 }
 
 /// Dispatch a window-manager or power [`NativeAction`]. `action` is only
-/// used for its label in the "no Linux equivalent" debug log.
+/// used for its label in debug logs.
+///
+/// Omalogi is Omarchy/Hyprland-only: on sessions exposing
+/// `HYPRLAND_INSTANCE_SIGNATURE` each action routes to `hyprctl` or an
+/// `omarchy-*` helper with fixed argv (resolved via the agent's `PATH`)
+/// and falls back to the legacy chord when the helper is missing or fails.
+/// Off Hyprland the legacy GNOME/KDE chords apply unchanged.
 fn dispatch_native(action: &Action, native: NativeAction) {
+    // Sleep is compositor-independent (logind) — identical everywhere.
+    if native == NativeAction::Sleep {
+        sleep_system();
+        return;
+    }
+    if on_hyprland() && dispatch_hyprland(action, native) {
+        return;
+    }
     let ctrl = KeyCode::KEY_LEFTCTRL;
     let alt = KeyCode::KEY_LEFTALT;
     match native {
-        // No universal Linux equivalent; the compositor shortcut varies.
+        // AppExpose has no Hyprland equivalent either — skipped everywhere.
+        NativeAction::AppExpose => {
+            tracing::debug!(
+                action = action.label(),
+                "no Hyprland/Linux equivalent — action skipped"
+            );
+        }
+        // Handled on Hyprland above; off Hyprland no universal Linux
+        // equivalent exists and the compositor shortcut varies.
         NativeAction::MissionControl
-        | NativeAction::AppExpose
         | NativeAction::ShowDesktop
         | NativeAction::LaunchpadShow => {
             tracing::debug!(
@@ -154,8 +175,73 @@ fn dispatch_native(action: &Action, native: NativeAction) {
         NativeAction::Screenshot | NativeAction::CaptureRegion => {
             press_key(&[], KeyCode::KEY_SYSRQ);
         }
-        // logind Suspend() via the system bus.
         NativeAction::Sleep => sleep_system(),
+    }
+}
+
+/// A Hyprland/Omarchy session exposes `HYPRLAND_INSTANCE_SIGNATURE`.
+fn on_hyprland() -> bool {
+    std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
+}
+
+/// Hyprland/Omarchy dispatch for [`NativeAction`]: `true` when a helper ran
+/// successfully, `false` to take the legacy chord path in [`dispatch_native`].
+fn dispatch_hyprland(action: &Action, native: NativeAction) -> bool {
+    let Some((program, args)) = hyprland_command(native) else {
+        // AppExpose/Sleep have no Hyprland mapping by design — no failure.
+        return false;
+    };
+    let handled = run_helper(program, args);
+    if !handled {
+        tracing::debug!(
+            action = action.label(),
+            "Hyprland helper failed — legacy fallback"
+        );
+    }
+    handled
+}
+
+/// Fixed helper argv per [`NativeAction`]; `None` = no Hyprland mapping.
+/// Pure table so tests pin it without spawning processes.
+fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'static str])> {
+    match native {
+        NativeAction::PreviousDesktop => Some(("hyprctl", &["dispatch", "workspace", "e-1"])),
+        NativeAction::NextDesktop => Some(("hyprctl", &["dispatch", "workspace", "e+1"])),
+        // NOTE: no logind attempt here — `LockSession` succeeding does not
+        // mean hyprlock ran. `omarchy-system-lock` is the lock path.
+        NativeAction::LockScreen => Some(("omarchy-system-lock", &[])),
+        NativeAction::Screenshot => Some(("omarchy-capture-screenshot", &[])),
+        NativeAction::CaptureRegion => Some(("omarchy-capture-screenshot", &["region"])),
+        NativeAction::LaunchpadShow => Some(("omarchy-menu", &["toggle"])),
+        NativeAction::ShowDesktop => {
+            Some(("hyprctl", &["dispatch", "togglespecialworkspace"]))
+        }
+        // Requires the hyprexpo plugin; failure falls through to the no-op.
+        NativeAction::MissionControl => Some(("hyprctl", &["dispatch", "hyprexpo:toggle"])),
+        // No Hyprland equivalent; Sleep never reaches here (see above).
+        NativeAction::AppExpose | NativeAction::Sleep => None,
+    }
+}
+
+/// Run one helper with fixed argv (no shell) and report success.
+///
+/// Synchronous on the action worker: these helpers are local and exit fast.
+// ponytail: no timeout — a hung helper stalls later remaps. Sidecar thread
+// if it ever bites (upstream #1162 hit this with a hung lock helper).
+fn run_helper(program: &str, args: &[&str]) -> bool {
+    match std::process::Command::new(program).args(args).output() {
+        Ok(out) if out.status.success() => {
+            tracing::debug!(program, "Hyprland helper ran");
+            true
+        }
+        Ok(out) => {
+            tracing::debug!(program, status = ?out.status, "Hyprland helper failed");
+            false
+        }
+        Err(e) => {
+            tracing::debug!(program, error = %e, "Hyprland helper not found");
+            false
+        }
     }
 }
 
@@ -189,7 +275,7 @@ pub(super) fn run_shell_command(cmd: &str) {
         .output();
 }
 
-const DEVICE_NAME: &str = "OpenLogi action injector";
+const DEVICE_NAME: &str = "Omalogi action injector";
 
 static VIRTUAL_INPUT: LazyLock<Option<Mutex<VirtualDevice>>> = LazyLock::new(|| {
     build()
@@ -669,8 +755,9 @@ mod tests {
     use evdev::KeyCode;
     use openlogi_core::binding::{KeyCombo, Shortcut};
 
-    use super::{combo, hid_usage_to_linux, key_ev, key_phase_events, modifiers_to_keycodes, syn};
+    use super::{combo, hid_usage_to_linux, hyprland_command, key_ev, key_phase_events, modifiers_to_keycodes, syn};
     use crate::inject::KeyPhase;
+    use openlogi_core::binding::NativeAction;
 
     #[test]
     fn held_chord_edges_use_inverse_key_order() {
@@ -742,5 +829,34 @@ mod tests {
                 "{shortcut:?} table entry has no Linux keycode mapping"
             );
         }
+    }
+
+    /// Pin the Hyprland helper table: each NativeAction must map to the
+    /// exact `omarchy-*`/`hyprctl` argv the compositor expects, and
+    /// Screenshot vs CaptureRegion must stay distinct (upstream mapped both
+    /// to Print). AppExpose/Sleep intentionally have no mapping.
+    #[test]
+    fn hyprland_table_pins_helper_argv() {
+        use NativeAction::*;
+        let table = [
+            (PreviousDesktop, "hyprctl", &["dispatch", "workspace", "e-1"][..]),
+            (NextDesktop, "hyprctl", &["dispatch", "workspace", "e+1"][..]),
+            (LockScreen, "omarchy-system-lock", &[][..]),
+            (Screenshot, "omarchy-capture-screenshot", &[][..]),
+            (CaptureRegion, "omarchy-capture-screenshot", &["region"][..]),
+            (LaunchpadShow, "omarchy-menu", &["toggle"][..]),
+            (ShowDesktop, "hyprctl", &["dispatch", "togglespecialworkspace"][..]),
+            (MissionControl, "hyprctl", &["dispatch", "hyprexpo:toggle"][..]),
+        ];
+        for (action, program, args) in table {
+            assert_eq!(hyprland_command(action), Some((program, args)));
+        }
+        assert_eq!(hyprland_command(AppExpose), None);
+        assert_eq!(hyprland_command(Sleep), None);
+        // Screenshot and region capture must not collapse to one command.
+        assert_ne!(
+            hyprland_command(Screenshot),
+            hyprland_command(CaptureRegion)
+        );
     }
 }

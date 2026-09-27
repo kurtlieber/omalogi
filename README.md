@@ -1,14 +1,20 @@
 > [!WARNING]
-> **OpenLogi is under active development** and not yet stable — features and config may still change. Give the repo a **Star** ⭐ and **Watch** 👀 it to get notified when a new release lands.
+> **Omalogi is under active development** and not yet stable — features and config may still change.
 
 <h4 align="right"><strong>English</strong> | <a href="docs/README.zh-CN.md">简体中文</a> | <a href="docs/README.ja.md">日本語</a> | <a href="docs/README.de.md">Deutsch</a> | <a href="docs/README.fr.md">Français</a> | <a href="docs/README.ko.md">한국어</a> | <a href="docs/README.ru.md">Русский</a></h4>
 
-<p align="center">
-    <img src="https://assets.openlogi.org/brand/openlogi-icon.png" width="138" alt="OpenLogi"/>
-</p>
+> [!NOTE]
+> **Omalogi is a hard fork of [AprilNEA/OpenLogi](https://github.com/AprilNEA/OpenLogi)**
+> — every HID++ protocol, device, and GUI feature below is their work.
+> Omalogi exists for one reason: make the system-action buttons (gestures,
+> workspace, lock, screenshot, launcher) work natively on
+> [Omarchy](https://omarchy.org/) / Hyprland. Linux/Hyprland is the *only*
+> platform; macOS and Windows backends were deleted. Crate names stay
+> `openlogi-*` on purpose so protocol updates cherry-pick cleanly from
+> upstream — see [docs/PROTOCOL-PULLS.md](docs/PROTOCOL-PULLS.md).
 
-<h1 align="center">OpenLogi</h1>
-<p align="center"><strong>⚡️ A native, local-first alternative to Logitech Options+, written in Rust 🦀<br/>Unlock the full capabilities of Logitech mice, keyboards, and webcams over HID++ and UVC</strong></p>
+<h1 align="center">Omalogi</h1>
+<p align="center"><strong>⚡️ Omarchy-native Logitech remapper, written in Rust 🦀<br/>Unlock the full capabilities of Logitech mice, keyboards, and webcams over HID++ and UVC — with Hyprland actions that actually fire</strong></p>
 
 <div align="center">
     <a href="https://twitter.com/AprilNEA" target="_blank">
@@ -41,10 +47,12 @@ Runs on macOS, Linux, and Windows.
 
 ## Beyond Options+
 
-Things OpenLogi does that Options+ won't:
+Things Omalogi does that Options+ won't:
 
 - **Stay light.** Native Rust + GPUI.
-- **Run on Linux.** Linux is a first-class platform in OpenLogi.
+- **Run on Omarchy.** Hyprland is the only platform — gestures, workspace
+  switching, lock, screenshot/region, and the app launcher fire real
+  `hyprctl` / `omarchy-*` commands instead of GNOME/KDE chords.
 - **Gestures on supported buttons.** Assign gesture actions to supported controls — or turn gestures off entirely.
 - **Plain-text config.** Everything is one TOML file you can sync between machines however you like.
 - **Script it.** A real CLI alongside the GUI.
@@ -79,38 +87,14 @@ Things OpenLogi does that Options+ won't:
 - Image controls written straight to the UVC hardware — zoom, focus, exposure, brightness, contrast, saturation, sharpness, white balance, tint, anti-flicker, and low-light compensation, with auto-mode toggles for focus / exposure / white balance — so changes apply in Meet / Zoom / OBS and every other app using the camera
 - One-click profiles: built-in Default / Streaming / Video call plus custom snapshots; settings persist per camera and are written back to the hardware on the next view
 
-¹ Media key actions use D-Bus MPRIS on Linux; a handful of macOS-specific actions have no universal Linux equivalent and are no-ops. Windows maps platform actions to native equivalents where available.
+¹ Media key actions use D-Bus MPRIS. Window-manager actions dispatch to Hyprland/Omarchy helpers when `HYPRLAND_INSTANCE_SIGNATURE` is set, with GNOME/KDE-chord fallback otherwise; `AppExpose` has no Hyprland equivalent and is a no-op.
 
 ## Install
 
 > [!IMPORTANT]
 > Quit **Logi Options+** first: the two applications fight over HID++ access, and only one can own a given receiver at a time.
 
-### macOS
-
-Requires macOS 13 or later.
-
-Download the signed, notarized `.dmg` from the [latest release](https://github.com/AprilNEA/OpenLogi/releases/latest) and drag `OpenLogi.app` to `/Applications`.
-
-Or install via [Homebrew](https://brew.sh):
-
-```sh
-brew install --cask openlogi
-```
-
-The official Homebrew cask is the default installation path. To explicitly
-track the latest GitHub release from `aprilnea/tap` instead:
-
-```sh
-brew tap aprilnea/tap
-brew install --cask aprilnea/tap/openlogi@latest
-```
-
-`openlogi@latest` is maintained by OpenLogi's release workflow and may update
-before the official cask autobump lands. Install either `openlogi` or
-`openlogi@latest`, not both.
-
-### Linux
+### Linux (Omarchy / Hyprland)
 
 Download the package for your distribution from the
 [latest release](https://github.com/AprilNEA/OpenLogi/releases/latest):
@@ -164,23 +148,20 @@ systemctl --user enable --now openlogi-agent.service
 See [docs/INSTALL-linux.md](docs/INSTALL-linux.md) for complete NixOS options,
 manual / source installs, and distros without systemd.
 
-### Windows
+### Hyprland action mapping
 
-Signed portable `.zip` archives and per-user `.msi` installers (x86_64 and
-arm64) are attached to each release. Both ship the GUI (`OpenLogi.exe`)
-together with the background agent (`openlogi-agent.exe`), which owns all
-device I/O. Keep the two files side by side when using the portable zip, or
-the GUI has nothing to connect to.
+| Button action | Omarchy command |
+|---|---|
+| Previous / Next Desktop | `hyprctl dispatch workspace e-1` / `e+1` |
+| Lock Screen | `omarchy-system-lock` |
+| Screenshot / Capture Region | `omarchy-capture-screenshot` / `… region` |
+| Launcher | `omarchy-menu toggle` |
+| Show Desktop | `hyprctl dispatch togglespecialworkspace` |
+| Mission Control | `hyprctl dispatch hyprexpo:toggle` (needs the hyprexpo plugin) |
 
-Windows support has been validated end-to-end on Windows 11 with real
-hardware (a wired keyboard and a Unifying-receiver mouse), including
-install, in-place upgrade, and uninstall of the MSI. It is newer than the
-macOS build, so if you hit a rough edge please
-[report it](https://github.com/AprilNEA/OpenLogi/issues). The agent shows a
-system-tray icon (Show Main Window / Quit) so the app stays reachable after
-the main window is closed. To disable it on Windows, set
-`show_in_menu_bar = false` in the TOML `[app_settings]` block and restart the
-agent; the GUI toggle is currently macOS-only.
+Helpers run with fixed argv and fall back to the legacy chord when missing
+or failing. `AppExpose` has no Hyprland equivalent. Sleep uses logind
+unchanged.
 
 To build from source, see [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
@@ -199,7 +180,9 @@ See [DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 ## Acknowledgments
 
-- **Windows, cameras, and i18n** by [@davidbudnick](https://github.com/davidbudnick) — keyboard RGB, Windows support, Logitech webcam support
+Omalogi is a hard fork — the foundation is entirely upstream:
+
+- [AprilNEA/OpenLogi](https://github.com/AprilNEA/OpenLogi) by [@AprilNEA](https://github.com/AprilNEA) — HID++ protocol, device support, GUI, and everything Omalogi stands on
 - **Linux port** by [@cserby](https://github.com/cserby) — Linux support
 - [Solaar](https://github.com/pwr-Solaar/Solaar) by [@pwr](https://github.com/pwr) — open-source HID++ implementation
 - [Mouser](https://github.com/TomBadash/Mouser) by [@TomBadash](https://github.com/TomBadash) — a local, account-free Options+ replacement
@@ -218,14 +201,9 @@ at your option.
 `crates/openlogi-hidpp` is a vendored fork of [`hidpp`](https://crates.io/crates/hidpp)
 by [@lus](https://github.com/lus), licensed 0BSD.
 
-### Logo & brand assets
-
-Thanks to [@kubai087](https://github.com/kubai087) for designing the OpenLogi
-logo. The OpenLogi logo and app icon (the brand assets under
-[`design/`](design/)) are © 2026 AprilNEA, all rights reserved, and are not covered by the MIT/Apache
-licenses above; see [`design/LICENSE`](design/LICENSE). Forking the code grants
-no right to the OpenLogi name, logo, or icon; please don't use them to represent
-your own projects, forks, or distributions without prior written permission.
+(Omalogi ships no brand assets — upstream `design/` was removed with the
+macOS/Windows backends. The OpenLogi name, logo, and icon remain © AprilNEA;
+this fork uses the Omalogi name only.)
 
 ---
 

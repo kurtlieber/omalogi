@@ -11,9 +11,9 @@ use gpui::{App, Global};
 
 #[cfg(any(target_os = "linux", test))]
 mod linux;
-#[cfg(any(target_os = "macos", all(test, unix)))]
+#[cfg(target_os = "macos")]
 mod macos;
-#[cfg(any(target_os = "windows", test))]
+#[cfg(target_os = "windows")]
 mod windows;
 
 /// Evidence-backed ownership of the currently running copy.

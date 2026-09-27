@@ -16,9 +16,6 @@ struct Cli {
 enum Command {
     /// Reproduce the CI jobs this host can run.
     Ci(commands::ci::Args),
-    /// macOS app bundle, icon, and DMG tasks.
-    #[command(subcommand)]
-    Macos(commands::macos::Command),
     /// Linux package tasks.
     #[command(subcommand)]
     Linux(commands::linux::Command),
@@ -30,7 +27,6 @@ enum Command {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Ci(args) => commands::ci::run(&args),
-        Command::Macos(command) => commands::macos::run(command),
         Command::Linux(command) => commands::linux::run(command),
         Command::Release(command) => commands::release::run(command),
     }
