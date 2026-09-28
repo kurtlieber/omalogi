@@ -12,14 +12,22 @@ listed deltas:
 
 - `crates/openlogi-hidpp/`, `crates/openlogi-hidpp-derive/`
 - `crates/openlogi-device/`, `crates/openlogi-device-registry/`
-- `crates/openlogi-core/` — delta: `src/brand.rs` (`APP_NAME` and the
-  repository/help/release URLs)
+- `crates/openlogi-core/` — deltas: `src/brand.rs` (`APP_NAME` and the
+  repository/help/release URLs); the Omarchy action vocabulary and
+  `[commands]` table (ADR-0005): `src/binding/{action,effect,defaults}.rs`,
+  `src/binding/action_ring/icon.rs` (label keys), `src/config.rs` (the
+  `commands` field), `src/config/commands.rs`
 - `crates/openlogi-fixture/`
 - `crates/openlogi-hid/` (keeps upstream's macOS/Windows transport code)
-- `crates/openlogi-ipc/`, `crates/openlogi-agent-core/`
-- `crates/openlogi-cli/`, `crates/openlogi/`
-- `crates/openlogi-ui/` — delta: the product name in `locales/*.toml`; after
-  a merge, re-run `sed -i 's/OpenLogi/Omalogi/g' crates/openlogi-ui/locales/*.toml`
+- `crates/openlogi-ipc/`
+- `crates/openlogi-agent-core/` — delta: `src/runtime/pointer.rs` (no
+  focus gate for `FormerWorkspace`)
+- `crates/openlogi-cli/` — delta: `src/cmd/reload.rs` (`openlogi reload`);
+  `crates/openlogi/`
+- `crates/openlogi-ui/` — deltas: the product name in `locales/*.toml`, and
+  the renamed Navigation keys (`actions.omarchy_menu`, …,
+  `pointer.previous_next_workspace`); after a merge, re-run
+  `sed -i 's/OpenLogi/Omalogi/g' crates/openlogi-ui/locales/*.toml`
 - `crates/openlogi-assets/` — delta: `src/http.rs` (User-Agent names Omalogi)
 
 **Omalogi-owned** — Linux-only rewrites; keep ours and port upstream's
@@ -50,7 +58,15 @@ git diff --cached --name-only --diff-filter=A
 #    Omalogi-owned file, read upstream's change (`git log -p ORIG_HEAD..vX.Y.Z
 #    -- <path>`) and port only what applies on Linux.
 
-# 4. Prove the tree.
+# 4. Upstream code that names a renamed action (`Action::MissionControl`,
+#    `NativeAction::ShowDesktop`, `actions.launchpad`, …) no longer compiles
+#    or finds its locale key. Rename it with the ADR-0005 table. Expected
+#    hits: the `serde(alias)` lines in `action.rs`, the icon names beside
+#    them, and the tests that load upstream names.
+git grep -nE 'MissionControl|AppExpose|LaunchpadShow|PreviousDesktop|NextDesktop|ShowDesktop|mission_control|app_expose|launchpad|show_desktop' \
+  -- crates ':!crates/openlogi-hidpp' ':!*/action_ring/icon.rs'
+
+# 5. Prove the tree.
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace

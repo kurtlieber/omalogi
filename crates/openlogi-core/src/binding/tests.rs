@@ -200,13 +200,13 @@ fn binding_gesture_roundtrips() {
 
 #[test]
 fn binding_long_press_roundtrips_without_overlapping_other_table_shapes() {
-    let binding = Binding::LongPress(LongPressBinding::new(Action::Copy, Action::MissionControl));
+    let binding = Binding::LongPress(LongPressBinding::new(Action::Copy, Action::OmarchyMenu));
     let back = binding_roundtrip(BTreeMap::from([(ButtonId::Back, binding.clone())]));
     assert_eq!(back[&ButtonId::Back], binding);
 
     let toml = toml::to_string_pretty(&BindingWrapper { bindings: back }).expect("serialize");
     assert!(toml.contains("short = \"Copy\""));
-    assert!(toml.contains("long = \"MissionControl\""));
+    assert!(toml.contains("long = \"OmarchyMenu\""));
     assert!(!toml.contains("LongPress"));
 }
 
@@ -297,6 +297,27 @@ fn all_catalog_variants_roundtrip_toml() {
 }
 
 #[test]
+fn upstream_navigation_names_load_as_omalogi_actions() {
+    // ADR-0005: the six navigation actions were renamed in place. Configs
+    // written by OpenLogi (or an older Omalogi) must still load, and the
+    // next save must write the Omalogi name.
+    for (legacy, action) in [
+        ("MissionControl", Action::OmarchyMenu),
+        ("AppExpose", Action::FormerWorkspace),
+        ("PreviousDesktop", Action::PreviousWorkspace),
+        ("NextDesktop", Action::NextWorkspace),
+        ("ShowDesktop", Action::ToggleScratchpad),
+        ("LaunchpadShow", Action::AppsMenu),
+    ] {
+        let src = format!("[binding]\nBack = \"{legacy}\"\n");
+        let loaded: RoundtripWrapper = toml::from_str(&src).expect("legacy name loads");
+        assert_eq!(loaded.binding[&ButtonId::Back], action, "{legacy}");
+        let saved = toml::to_string(&loaded).expect("serialize");
+        assert!(!saved.contains(legacy), "{legacy} re-saved as: {saved}");
+    }
+}
+
+#[test]
 fn persisted_action_variant_names_are_stable() {
     let mut actions = Action::catalog();
     actions.extend([
@@ -334,7 +355,7 @@ fn persisted_action_variant_names_are_stable() {
         .collect();
     actual.sort();
     let mut expected = [
-        "AppExpose",
+        "FormerWorkspace",
         "BrowserBack",
         "BrowserForward",
         "CaptureRegion",
@@ -347,16 +368,16 @@ fn persisted_action_variant_names_are_stable() {
         "HorizontalScrollLeft",
         "HorizontalScrollRight",
         "HoldShortcut",
-        "LaunchpadShow",
+        "AppsMenu",
         "LeftClick",
         "LockScreen",
         "MiddleClick",
-        "MissionControl",
+        "OmarchyMenu",
         "MouseBack",
         "MouseForward",
         "MuteVolume",
         "NewTab",
-        "NextDesktop",
+        "NextWorkspace",
         "NextTab",
         "NextTrack",
         "None",
@@ -365,7 +386,7 @@ fn persisted_action_variant_names_are_stable() {
         "PlayPause",
         "PrevTab",
         "PrevTrack",
-        "PreviousDesktop",
+        "PreviousWorkspace",
         "Redo",
         "ReloadPage",
         "ReopenTab",
@@ -379,7 +400,7 @@ fn persisted_action_variant_names_are_stable() {
         "SelectAll",
         "SetDpiPreset",
         "ShowActionsRing",
-        "ShowDesktop",
+        "ToggleScratchpad",
         "Sleep",
         "ToggleSmartShift",
         "TypeText",
@@ -469,12 +490,12 @@ fn category_scroll_variants() {
 
 #[test]
 fn category_navigation_variants() {
-    assert_eq!(Action::MissionControl.category(), Category::Navigation);
-    assert_eq!(Action::AppExpose.category(), Category::Navigation);
-    assert_eq!(Action::PreviousDesktop.category(), Category::Navigation);
-    assert_eq!(Action::NextDesktop.category(), Category::Navigation);
-    assert_eq!(Action::ShowDesktop.category(), Category::Navigation);
-    assert_eq!(Action::LaunchpadShow.category(), Category::Navigation);
+    assert_eq!(Action::OmarchyMenu.category(), Category::Navigation);
+    assert_eq!(Action::FormerWorkspace.category(), Category::Navigation);
+    assert_eq!(Action::PreviousWorkspace.category(), Category::Navigation);
+    assert_eq!(Action::NextWorkspace.category(), Category::Navigation);
+    assert_eq!(Action::ToggleScratchpad.category(), Category::Navigation);
+    assert_eq!(Action::AppsMenu.category(), Category::Navigation);
 }
 
 #[test]

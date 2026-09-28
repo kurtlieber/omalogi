@@ -314,7 +314,7 @@ fn an_active_session_refreshes_bindings_without_rearming_hardware() {
     let mut old_plan = plan();
     old_plan.dispatch.side_gesture_bindings.insert(
         ButtonId::Forward,
-        [(GestureDirection::Click, Action::MissionControl)].into(),
+        [(GestureDirection::Click, Action::OmarchyMenu)].into(),
     );
     old_plan
         .target
@@ -326,7 +326,7 @@ fn an_active_session_refreshes_bindings_without_rearming_hardware() {
     let mut new_plan = old_plan;
     new_plan.dispatch.side_gesture_bindings.insert(
         ButtonId::Forward,
-        [(GestureDirection::Click, Action::ShowDesktop)].into(),
+        [(GestureDirection::Click, Action::ToggleScratchpad)].into(),
     );
     assert_eq!(session.target(), &new_plan.target);
 
@@ -339,7 +339,7 @@ fn an_active_session_refreshes_bindings_without_rearming_hardware() {
     assert!(session.is_active());
     assert_eq!(
         session.dispatch().side_gesture_bindings[&ButtonId::Forward][&GestureDirection::Click],
-        Action::ShowDesktop,
+        Action::ToggleScratchpad,
         "an unchanged capture target must still adopt the new app/profile action"
     );
 }
@@ -349,7 +349,7 @@ fn side_gesture_transition_keeps_the_retiring_plan_until_native_restore() {
     let mut old_plan = plan();
     old_plan.dispatch.side_gesture_bindings.insert(
         ButtonId::Forward,
-        [(GestureDirection::Click, Action::MissionControl)].into(),
+        [(GestureDirection::Click, Action::OmarchyMenu)].into(),
     );
     old_plan
         .target
@@ -508,7 +508,7 @@ fn active_session_adopts_gesture_and_per_app_dispatch_changes() {
         "mouse-a",
         ButtonId::GestureButton,
         GestureDirection::Right,
-        Action::MissionControl,
+        Action::OmarchyMenu,
     );
     let gestured = crate::capture_plan::plan_for_device(
         &config,
@@ -530,7 +530,7 @@ fn active_session_adopts_gesture_and_per_app_dispatch_changes() {
             .gesture_bindings
             .get(&ButtonId::GestureButton)
             .and_then(|map| map.get(&GestureDirection::Right)),
-        Some(&Action::MissionControl)
+        Some(&Action::OmarchyMenu)
     );
 
     config.set_binding(

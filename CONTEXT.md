@@ -6,10 +6,14 @@ Glossary only. No implementation details.
   Hard fork of OpenLogi; Linux is the only platform.
 - **Upstream**: `AprilNEA/OpenLogi`, tracked as the `upstream` git remote.
   Source of all HID++ protocol and device support.
-- **NativeAction**: OpenLogi's platform-neutral window-manager/power action
-  enum (`MissionControl`, `AppExpose`, `PreviousDesktop`, `NextDesktop`,
-  `ShowDesktop`, `LaunchpadShow`, `LockScreen`, `Screenshot`,
-  `CaptureRegion`, `Sleep`). Defined in `openlogi-core`; unchanged by Omalogi.
+- **NativeAction**: the window-manager/power action enum (`OmarchyMenu`,
+  `FormerWorkspace`, `PreviousWorkspace`, `NextWorkspace`,
+  `ToggleScratchpad`, `AppsMenu`, `LockScreen`, `Screenshot`,
+  `CaptureRegion`, `Sleep`). Defined in `openlogi-core`; the first six are
+  Omalogi renames of upstream's macOS names (ADR-0005).
+- **Command override**: a `[commands]` entry that replaces a one-shot action
+  with a user shell command everywhere the action is bound. Final — no
+  fallback to the built-in action.
 - **Omarchy action**: the concrete Hyprland/Omarchy command a NativeAction
   runs as (`hyprctl dispatch …`, `omarchy-system-lock`,
   `omarchy-capture-screenshot`, `omarchy-menu toggle`).
@@ -20,7 +24,8 @@ Glossary only. No implementation details.
   shared-agent crates (`openlogi-hidpp`, `openlogi-device`,
   `openlogi-device-registry`, `openlogi-core`, `openlogi-hid`,
   `openlogi-ipc`, `openlogi-agent-core`, …). Hardware knowledge lives here.
-  Merged from upstream release tags; never forked divergently.
+  Merged from upstream release tags; Omalogi deltas are kept few and listed
+  in `docs/PROTOCOL-PULLS.md` (the largest: the Omarchy action vocabulary).
 - **Omalogi-owned crates**: everything that touches the OS or screen
   (`openlogi-inject`, `openlogi-hook`, `openlogi-agent`, desktop, overlay,
   camera, permissions). Linux-only; upstream changes are ported by hand.

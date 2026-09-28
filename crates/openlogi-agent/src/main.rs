@@ -74,6 +74,8 @@ fn main() {
     // the system locale) before any menu is built. A live language switch
     // reaches the running agent through `reload_config`.
     openlogi_core::locale::activate(config.app_settings.language.as_deref());
+    // `[commands]` overrides; `reload_config` replaces them on every reload.
+    openlogi_inject::set_command_overrides(config.commands.clone());
 
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()

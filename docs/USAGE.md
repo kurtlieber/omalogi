@@ -11,6 +11,7 @@ openlogi diag controls        # dump reprogrammable controls and capability flag
 openlogi diag dpi             # read → write → read-back → restore DPI (smoke test)
 openlogi diag smartshift      # toggle SmartShift and restore (smoke test)
 openlogi diag lighting ff0000 # solid colour for a wired RGB keyboard (any RRGGBB hex)
+openlogi reload               # apply a hand-edited config.toml to the running agent
 ```
 
 Running `openlogi` with no subcommand defaults to `list`. Set

@@ -66,7 +66,7 @@ fn keyboard_section_roundtrips_through_config() {
     );
     config.keyboard.bindings.insert(
         "f17".parse().expect("parse key trigger"),
-        Action::MissionControl,
+        Action::OmarchyMenu,
     );
 
     let roundtripped = write_and_read(&config);
@@ -83,7 +83,7 @@ fn keyboard_section_roundtrips_through_config() {
             .keyboard
             .bindings
             .get(&"f17".parse::<KeyTrigger>().expect("parse key trigger")),
-        Some(&Action::MissionControl)
+        Some(&Action::OmarchyMenu)
     );
 }
 

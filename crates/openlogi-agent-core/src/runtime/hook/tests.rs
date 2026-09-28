@@ -242,7 +242,7 @@ fn mouse_press_uses_the_target_published_with_its_binding_not_frontmost_safari()
 
     let (dispatcher, mut owner, events) = test_dispatcher();
     let hooks = Arc::new(RwLock::new(HookMaps {
-        bindings: BTreeMap::from([(ButtonId::Back, Action::PreviousDesktop.into())]),
+        bindings: BTreeMap::from([(ButtonId::Back, Action::PreviousWorkspace.into())]),
         pointer_target: Some(PointerTarget::Desktop),
         ..HookMaps::default()
     }));
@@ -271,7 +271,7 @@ fn mouse_press_uses_the_target_published_with_its_binding_not_frontmost_safari()
         press.target(),
         ActionDispatchTarget::Pointer(PointerTarget::Desktop)
     );
-    assert_eq!(press.start_action(), Some(&Action::PreviousDesktop));
+    assert_eq!(press.start_action(), Some(&Action::PreviousWorkspace));
     // Pointer movement can restore the native binding before release. The
     // suppressed down must still have a suppressed up and end its lifecycle.
     hooks
@@ -313,7 +313,7 @@ fn mouse_press_uses_the_target_published_with_its_binding_not_frontmost_safari()
         .write()
         .expect("maps")
         .bindings
-        .insert(ButtonId::Back, Action::PreviousDesktop.into());
+        .insert(ButtonId::Back, Action::PreviousWorkspace.into());
     assert_eq!(
         handle_button(
             ButtonId::Back,
@@ -473,7 +473,7 @@ fn native_thumbwheel_scroll_stays_os_native() {
 fn long_press_never_passes_through_as_a_native_click() {
     let binding = Binding::LongPress(LongPressBinding::new(
         default_binding(ButtonId::Back),
-        Action::MissionControl,
+        Action::OmarchyMenu,
     ));
     assert!(!binding_is_native_click(ButtonId::Back, &binding));
 }

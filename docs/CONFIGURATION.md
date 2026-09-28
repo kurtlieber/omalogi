@@ -2,7 +2,9 @@
 
 Omalogi stores settings as plain TOML in `$XDG_CONFIG_HOME/openlogi/config.toml`
 (normally `~/.config/openlogi/config.toml`). The GUI and agent read the same
-file, and the format is upstream OpenLogi's, so a config moves between the two.
+file. An OpenLogi config loads in Omalogi, but not the reverse: Omalogi renames
+the Navigation actions and adds a `[commands]` table (see
+[ADR-0005](adr/0005-omarchy-action-vocabulary.md)).
 
 The complete, tested example is [config.example.toml](config.example.toml).
 Copy only the sections you need and replace its example physical device keys
@@ -17,12 +19,14 @@ GUI updates known fields.
 The schema is strict: misspelled, obsolete, and out-of-range fields stop the
 config from loading instead of silently selecting a default or disappearing on
 the next save. The GUI then opens in read-only mode and shows the exact TOML
-error. Fix the file and relaunch OpenLogi.
+error. Fix the file and relaunch Omalogi.
 
 If the file changes in an editor while the GUI is open, the next GUI save is
 refused rather than overwriting the external edit. Relaunch to load that
 revision. Opening the GUI also tells the resident agent to reload the current
-file, so hand edits and runtime behavior converge immediately.
+file, so hand edits and runtime behavior converge immediately. Without the GUI,
+run `openlogi reload`: it applies the file to the running agent, or prints the
+parse error and leaves the agent on its current config.
 
 Schema versions newer than the running build are rejected before their fields
 are parsed. v1 binding maps and the v2–v3 gesture-owner layout migrate on load.
@@ -95,8 +99,21 @@ Common device fields are:
 
 Action names are the serialized Rust variant names, including `Copy`,
 `BrowserBack`, `PlayPause`, `CycleDpiPresets`, and `ShowActionsRing`.
-Window-manager actions (`NextDesktop`, `LockScreen`, `Screenshot`, …) run the
+Window-manager actions (`NextWorkspace`, `LockScreen`, `Screenshot`, …) run the
 Hyprland/Omarchy commands listed in the [README](../README.md#hyprland-action-mapping).
+
+Omalogi renamed upstream's six macOS Navigation actions. The upstream names
+still load and are rewritten on the next save:
+
+| Omalogi name | Upstream name |
+|---|---|
+| `OmarchyMenu` | `MissionControl` |
+| `FormerWorkspace` | `AppExpose` |
+| `PreviousWorkspace` | `PreviousDesktop` |
+| `NextWorkspace` | `NextDesktop` |
+| `ToggleScratchpad` | `ShowDesktop` |
+| `AppsMenu` | `LaunchpadShow` |
+
 `Cmd` in a shortcut is sent as Ctrl.
 Payload actions use a one-key inline table:
 
@@ -104,7 +121,8 @@ Payload actions use a one-key inline table:
 Back = { CustomShortcut = "Cmd+Shift+P" }
 Forward = { HoldShortcut = "Ctrl+Space" }
 MiddleClick = { OpenApplication = { path = "~/Downloads", display_name = "Downloads" } }
-DpiToggle = { short = "ShowDesktop", long = "MissionControl" }
+DpiToggle = { short = "ToggleScratchpad", long = "OmarchyMenu" }
+Forward = { RunShellCommand = "omarchy-launch-browser" }
 ```
 
 `CustomShortcut` emits an immediate key-down/key-up pair. `HoldShortcut` keeps
@@ -133,3 +151,36 @@ Top = { action = { CustomShortcut = "Cmd+Shift+P" }, icon = "Keyboard", label = 
 ```
 
 `ShowActionsRing` is rejected inside a ring slot to prevent recursive rings.
+
+## Command overrides
+
+`[commands]` replaces a built-in action with your own shell command
+everywhere that action is bound: every device, per-app profile, gesture
+direction, F-key, and Actions Ring slot. The GUI keeps showing the action's
+usual name.
+
+```toml
+[commands]
+OmarchyMenu = "~/bin/my-overview"
+ToggleScratchpad = "hyprctl dispatch togglespecialworkspace term"
+VolumeUp = "pamixer -i 2"
+```
+
+- **Keys** are action names from `config.toml` bindings (upstream names are
+  accepted). Only one-shot actions can be overridden: Editing, Browser, Media,
+  and Navigation actions, plus `LockScreen`, `Screenshot`, `CaptureRegion`,
+  and `Sleep`. Clicks, scrolls, `HoldShortcut`, `None`, the DPI and
+  SmartShift actions, and `ShowActionsRing` need press/release handling or run
+  inside the agent, so the config refuses to load if they appear here.
+- **Values** run through `/bin/sh -c` as your user, with stdin, stdout, and
+  stderr on `/dev/null`, so `~`, `$VARS`, pipes, and `&` work.
+- **An override is final.** If the command cannot start or exits non-zero,
+  the agent logs a warning (`journalctl --user -u openlogi-agent`) and shows
+  one desktop notification per action every 10 seconds. The built-in action
+  does not run as a fallback.
+- **Applying edits:** the GUI reloads the agent when it opens; otherwise run
+  `openlogi reload`.
+
+To give a single button a command without changing the action everywhere,
+bind it to `RunShellCommand` instead — in the GUI, pick **Run Shell Command…**
+in the button, gesture, or Actions Ring picker.

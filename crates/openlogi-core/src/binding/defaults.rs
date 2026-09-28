@@ -69,7 +69,7 @@ pub fn default_binding(button: ButtonId) -> Action {
         // per-press burst a button would get (see `watchers::gesture`).
         ButtonId::ThumbwheelScrollUp => Action::HorizontalScrollLeft,
         ButtonId::ThumbwheelScrollDown => Action::HorizontalScrollRight,
-        ButtonId::GestureButton => Action::MissionControl,
+        ButtonId::GestureButton => Action::OmarchyMenu,
         ButtonId::HapticPanel => Action::ShowActionsRing,
         // Keyboard keys stay on their native firmware function until the user
         // explicitly binds them; an unbound key is never diverted, so a
@@ -92,11 +92,11 @@ pub fn default_binding(button: ButtonId) -> Action {
 #[must_use]
 pub fn default_gesture_binding(direction: GestureDirection) -> Action {
     match direction {
-        GestureDirection::Up => Action::MissionControl,
-        GestureDirection::Down => Action::ShowDesktop,
+        GestureDirection::Up => Action::OmarchyMenu,
+        GestureDirection::Down => Action::ToggleScratchpad,
         GestureDirection::Left => Action::PrevTab,
         GestureDirection::Right => Action::NextTab,
-        GestureDirection::Click => Action::AppExpose,
+        GestureDirection::Click => Action::FormerWorkspace,
     }
 }
 

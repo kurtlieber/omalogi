@@ -1,6 +1,7 @@
 # ADR-0004: Merge upstream release tags
 
-Status: accepted (supersedes ADR-0003)
+Status: accepted (supersedes ADR-0003; narrowed by ADR-0005, which gives
+`openlogi-core` and a few other pulled crates Omalogi deltas)
 
 ## Context
 

@@ -12,11 +12,13 @@ HID++ protocol, device support, the agent, and the GUI. Omalogi narrows it to on
 desktop, Omarchy on Hyprland, and makes the system actions do what an Omarchy user
 expects:
 
-- **Workspace buttons and gestures** switch Hyprland workspaces.
+- **Workspace buttons and gestures** switch Hyprland workspaces, or jump back
+  to the one you were just on.
+- **Omarchy Menu** and **Apps Menu** open `omarchy-menu`.
+- **Toggle Scratchpad** shows and hides the scratchpad (SUPER+S).
 - **Lock** runs `omarchy-system-lock`.
 - **Screenshot** and **Capture Region** run `omarchy-capture-screenshot`.
-- **Launcher** opens the Omarchy menu.
-- **Show Desktop** toggles the scratchpad (SUPER+S).
+- **Your own scripts** can replace any of these (see [Custom commands](#custom-commands)).
 
 Everything Hyprland-specific is a small, tested table in
 `crates/openlogi-inject/src/inject/linux.rs`. The macOS and Windows backends
@@ -41,20 +43,43 @@ Inherited from OpenLogi and working on Omarchy:
 
 ## Hyprland action mapping
 
-| Button action | Command |
-|---|---|
-| Previous / Next Desktop | `hyprctl eval` → `hl.dsp.focus({workspace='e-1' / 'e+1'})` |
-| Lock Screen | `omarchy-system-lock` |
-| Screenshot | `omarchy-capture-screenshot fullscreen` |
-| Capture Region | `omarchy-capture-screenshot region` |
-| Launcher | `omarchy-menu toggle` |
-| Show Desktop | `hyprctl eval` → `hl.dsp.workspace.toggle_special('scratchpad')` |
-| Mission Control / App Exposé | unmapped — Omarchy has no overview |
-| Sleep | logind `Suspend` |
+| Button action | Command | Omarchy key |
+|---|---|---|
+| Omarchy Menu | `omarchy-menu toggle` | SUPER+SPACE |
+| Apps Menu | `omarchy-menu toggle apps` | SUPER+ALT+SPACE |
+| Former Workspace | `hyprctl eval` → `hl.dsp.focus({workspace='previous'})` | SUPER+CTRL+TAB |
+| Previous / Next Workspace | `hyprctl eval` → `hl.dsp.focus({workspace='e-1' / 'e+1'})` | SUPER+(SHIFT+)TAB |
+| Toggle Scratchpad | `hyprctl eval` → `hl.dsp.workspace.toggle_special('scratchpad')` | SUPER+S |
+| Lock Screen | `omarchy-system-lock` | |
+| Screenshot | `omarchy-capture-screenshot fullscreen` | |
+| Capture Region | `omarchy-capture-screenshot region` | |
+| Sleep | logind `Suspend` | |
 
 Helpers run with fixed arguments and no shell. If a helper is missing or
-fails, the action falls back to the generic GNOME/KDE key chord. Off Hyprland
-(no `HYPRLAND_INSTANCE_SIGNATURE`), those chords are all you get.
+fails, previous/next workspace, lock, and screenshots fall back to the generic
+GNOME/KDE key chords. Off Hyprland (no `HYPRLAND_INSTANCE_SIGNATURE`), those
+chords are all you get.
+
+These six Navigation actions are OpenLogi's macOS actions (Mission Control,
+App Exposé, Launchpad, …) renamed for Omarchy. An OpenLogi config still loads;
+see [ADR-0005](docs/adr/0005-omarchy-action-vocabulary.md).
+
+## Custom commands
+
+Point any built-in action at your own script with a `[commands]` table in
+`~/.config/openlogi/config.toml`. The override applies everywhere that action
+is bound:
+
+```toml
+[commands]
+OmarchyMenu = "~/bin/my-overview"
+VolumeUp = "pamixer -i 2"
+```
+
+Run `openlogi reload` to apply the edit. If a command fails, you get a
+desktop notification and the built-in action does not run. To give just one
+button a command, pick **Run Shell Command…** in that button's action list.
+Details: [Configuration → Command overrides](docs/CONFIGURATION.md#command-overrides).
 
 ## Install
 

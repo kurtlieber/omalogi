@@ -88,6 +88,7 @@ fn a_selected_gesture_can_render_in_the_binding_inspector(cx: &mut TestAppContex
                 selected: Some(MouseControlId::Button(ButtonId::MiddleClick)),
                 gesture_direction: Some(GestureDirection::Up),
                 action_picker_open: false,
+                command_editor_open: false,
                 bindings: &bindings,
                 gesture_maps: &gesture_maps,
                 dpi_gestures: false,
@@ -95,6 +96,7 @@ fn a_selected_gesture_can_render_in_the_binding_inspector(cx: &mut TestAppContex
                 overridden: None,
             },
             &view.action_search,
+            &view.command_input,
             &entity,
             cx,
         );

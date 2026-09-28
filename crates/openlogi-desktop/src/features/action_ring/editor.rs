@@ -25,6 +25,7 @@ pub(super) fn action_library(
     current: Option<&ActionRingEntry>,
     application_input: &Entity<InputState>,
     shortcut_input: &Entity<InputState>,
+    command_input: &Entity<InputState>,
     library_scroll: &ScrollHandle,
     pal: Palette,
 ) -> impl IntoElement {
@@ -86,6 +87,7 @@ pub(super) fn action_library(
                 })
                 .child(shortcut_editor(slot, shortcut_input, pal))
                 .child(path_editor(slot, application_input, pal))
+                .child(command_editor(slot, command_input, pal))
                 .children(action_sections(slot, current_action.as_ref(), pal)),
             library_scroll,
         ))
@@ -213,6 +215,42 @@ fn path_editor(slot: ActionRingSlot, input: &Entity<InputState>, pal: Palette) -
                             let path = submit_input.read(cx).value().to_string();
                             if let Ok(target) = ApplicationTarget::new(path, "") {
                                 commit_action(slot, Action::OpenApplication(target), cx);
+                            }
+                        }),
+                ),
+        )
+}
+
+/// "Run Shell Command": the slot runs a user's command through `sh -c`.
+fn command_editor(
+    slot: ActionRingSlot,
+    input: &Entity<InputState>,
+    pal: Palette,
+) -> impl IntoElement {
+    let submit_input = input.clone();
+    v_flex()
+        .gap_1()
+        .child(editor_section(
+            tr!("actions.run_shell_command_heading"),
+            pal,
+        ))
+        .child(
+            h_flex()
+                .gap_2()
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .child(control_input(input).cleanable(true)),
+                )
+                .child(
+                    Button::new("ring-add-command")
+                        .compact()
+                        .label(tr!("common.add"))
+                        .on_click(move |_, _, cx| {
+                            let command = submit_input.read(cx).value().trim().to_string();
+                            if !command.is_empty() {
+                                commit_action(slot, Action::RunShellCommand(command), cx);
                             }
                         }),
                 ),
@@ -380,7 +418,7 @@ mod tests {
             .into_iter()
             .flat_map(|(_, actions)| actions)
             .collect::<Vec<_>>();
-        assert!(actions.contains(&Action::MissionControl));
+        assert!(actions.contains(&Action::OmarchyMenu));
         assert!(!actions.contains(&Action::None));
         assert!(!actions.contains(&Action::ShowActionsRing));
     }

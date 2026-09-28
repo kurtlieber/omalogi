@@ -33,6 +33,7 @@ pub(super) struct BindingInspectorData<'a> {
     pub selected: Option<MouseControlId>,
     pub gesture_direction: Option<GestureDirection>,
     pub action_picker_open: bool,
+    pub command_editor_open: bool,
     pub bindings: &'a BTreeMap<ButtonId, Action>,
     pub gesture_maps: &'a BTreeMap<ButtonId, BTreeMap<GestureDirection, Action>>,
     pub dpi_gestures: bool,
@@ -44,12 +45,15 @@ pub(super) struct BindingInspectorData<'a> {
 struct ActionPickerContext<'a> {
     open: bool,
     search: &'a Entity<InputState>,
+    command_open: bool,
+    command_input: &'a Entity<InputState>,
     view: &'a Entity<MouseModelView>,
 }
 
 pub(super) fn binding_inspector(
     data: BindingInspectorData<'_>,
     action_search: &Entity<InputState>,
+    command_input: &Entity<InputState>,
     view: &Entity<MouseModelView>,
     cx: &Context<MouseModelView>,
 ) -> gpui::Div {
@@ -57,6 +61,8 @@ pub(super) fn binding_inspector(
     let picker = ActionPickerContext {
         open: data.action_picker_open,
         search: action_search,
+        command_open: data.command_editor_open,
+        command_input,
         view,
     };
     let body = match data.selected {
@@ -223,7 +229,7 @@ fn button_inspector(
             panel.child(action_library(
                 "inspector-action",
                 Some(&action),
-                picker.search,
+                picker,
                 &on_pick,
                 pal,
                 cx,
@@ -276,7 +282,7 @@ fn inherited_gesture_inspector(
             panel.child(action_library(
                 "inspector-gesture-override",
                 None,
-                picker.search,
+                picker,
                 &on_pick,
                 pal,
                 cx,
@@ -337,7 +343,7 @@ fn gesture_inspector(
             panel.child(action_library(
                 "inspector-gesture-action",
                 Some(&current),
-                picker.search,
+                picker,
                 &on_pick,
                 pal,
                 cx,
@@ -646,18 +652,21 @@ fn selection_card(
 fn action_library(
     id_prefix: &'static str,
     current: Option<&Action>,
-    action_search: &Entity<InputState>,
+    picker: ActionPickerContext<'_>,
     on_pick: &PickFn,
     pal: Palette,
     cx: &Context<MouseModelView>,
 ) -> impl IntoElement {
-    let query = action_search.read(cx).value();
+    if picker.command_open {
+        return command_editor(picker, on_pick, pal);
+    }
+    let query = picker.search.read(cx).value();
     let rows = action_rows_matching(id_prefix, current, &query, on_pick, pal);
     v_flex()
         .gap_2()
         .pt_1()
         .child(editor_section(tr!("actions.actions"), pal))
-        .child(control_input(action_search).cleanable(true))
+        .child(control_input(picker.search).cleanable(true))
         .child(
             v_flex()
                 .gap_0p5()
@@ -671,6 +680,96 @@ fn action_library(
                     )
                 })
                 .children(rows),
+        )
+        .child(editor_section(tr!("actions.power_user"), pal))
+        .child(run_command_row(current, picker, pal))
+}
+
+/// The "Run Shell Command…" row: opens [`command_editor`] seeded with the
+/// current command when the binding already runs one.
+fn run_command_row(
+    current: Option<&Action>,
+    picker: ActionPickerContext<'_>,
+    pal: Palette,
+) -> impl IntoElement {
+    let seed = match current {
+        Some(Action::RunShellCommand(command)) => command.clone(),
+        _ => String::new(),
+    };
+    let selected = !seed.is_empty();
+    let input = picker.command_input.clone();
+    let view = picker.view.clone();
+    MenuRow::new("inspector-run-command")
+        .selected(selected)
+        .role(Role::Button)
+        .child(
+            h_flex()
+                .items_center()
+                .gap_2()
+                .child(
+                    svg()
+                        .path("action-icons/terminal.svg")
+                        .size_4()
+                        .text_color(pal.text_muted),
+                )
+                .child(div().child(tr!("actions.run_shell_command"))),
+        )
+        .when(selected, |row| {
+            row.child(
+                Icon::new(IconName::Check)
+                    .size_3()
+                    .text_color(rgb(ACCENT_BLUE)),
+            )
+        })
+        .on_click(move |_, window, cx| {
+            input.update(cx, |input, cx| input.set_value(seed.clone(), window, cx));
+            view.update(cx, |view, cx| {
+                view.set_command_editor_open(true);
+                cx.notify();
+            });
+        })
+}
+
+/// Edit the shell command a binding runs (`sh -c`); Save commits it through
+/// the same `on_pick` as any catalog action.
+fn command_editor(picker: ActionPickerContext<'_>, on_pick: &PickFn, pal: Palette) -> gpui::Div {
+    let cancel = picker.view.clone();
+    let input = picker.command_input.clone();
+    let on_pick = on_pick.clone();
+    v_flex()
+        .gap_2()
+        .pt_1()
+        .child(editor_section(
+            tr!("actions.run_shell_command_heading"),
+            pal,
+        ))
+        .child(control_input(picker.command_input).cleanable(true))
+        .child(
+            h_flex()
+                .gap_2()
+                .justify_end()
+                .child(
+                    Button::new("inspector-command-cancel")
+                        .small()
+                        .label(tr!("common.cancel"))
+                        .on_click(move |_, _, cx| {
+                            cancel.update(cx, |view, cx| {
+                                view.set_command_editor_open(false);
+                                cx.notify();
+                            });
+                        }),
+                )
+                .child(
+                    Button::new("inspector-command-save")
+                        .small()
+                        .label(tr!("common.save"))
+                        .on_click(move |_, window, cx| {
+                            let command = input.read(cx).value().trim().to_string();
+                            if !command.is_empty() {
+                                on_pick(Action::RunShellCommand(command), window, cx);
+                            }
+                        }),
+                ),
         )
 }
 

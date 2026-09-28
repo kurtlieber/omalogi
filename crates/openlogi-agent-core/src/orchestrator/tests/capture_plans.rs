@@ -70,7 +70,7 @@ fn pointer_profiles_switch_to_desktop_without_changing_keyboard_focus() {
     config.set_binding(
         "a",
         ButtonId::Back,
-        Binding::Single(Action::PreviousDesktop),
+        Binding::Single(Action::PreviousWorkspace),
     );
     config.set_per_app_binding("a", "browser", ButtonId::Back, Some(Action::BrowserBack));
     config.set_per_app_binding("keyboard", "browser", ButtonId::Back, Some(Action::Copy));
@@ -92,12 +92,15 @@ fn pointer_profiles_switch_to_desktop_without_changing_keyboard_focus() {
         app: None,
         target: PointerTarget::Desktop
     }));
-    assert_eq!(published_back_binding(&orch), Some(Action::PreviousDesktop));
+    assert_eq!(
+        published_back_binding(&orch),
+        Some(Action::PreviousWorkspace)
+    );
     {
         let maps = orch.shared.hook_maps.read().expect("hook maps");
         assert_eq!(
             maps.bindings[&ButtonId::Back].click_action(),
-            Action::PreviousDesktop
+            Action::PreviousWorkspace
         );
         assert_eq!(maps.pointer_target, Some(PointerTarget::Desktop));
     }

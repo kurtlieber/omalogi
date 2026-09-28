@@ -36,17 +36,17 @@ Forward = "BrowserForward"
 # Hold the chord for exactly as long as the physical button is held.
 MiddleClick = { HoldShortcut = "Ctrl+Space" }
 # Release before 500 ms runs `short`; reaching 500 ms runs `long` once.
-DpiToggle = { short = "ShowDesktop", long = "MissionControl" }
+DpiToggle = { short = "ToggleScratchpad", long = "OmarchyMenu" }
 # The thumb wheel's capacitive tap. Inert unless set here; the wheel also
 # reports taps from incidental thumb contact.
-Thumbwheel = "AppExpose"
+Thumbwheel = "FormerWorkspace"
 
 [devices."receiver:aabbccdd:slot:1".bindings.GestureButton]
-Click = "MissionControl"
-Up = "MissionControl"
-Down = "AppExpose"
-Left = "PreviousDesktop"
-Right = "NextDesktop"
+Click = "OmarchyMenu"
+Up = "OmarchyMenu"
+Down = "FormerWorkspace"
+Left = "PreviousWorkspace"
+Right = "NextWorkspace"
 
 [devices."receiver:aabbccdd:slot:1".per_app_bindings."com.microsoft.VSCode"]
 Back = "Undo"
@@ -61,7 +61,7 @@ haptics = true
 [devices."receiver:aabbccdd:slot:1".action_ring.default.slots]
 Top = { action = "Copy", icon = "Keyboard" }
 Right = { action = { OpenApplication = { path = "/Applications/Safari.app", display_name = "Safari" } }, icon = "Applications" }
-Bottom = { action = "ShowDesktop", label = "Desktop" }
+Bottom = { action = "ToggleScratchpad", label = "Scratchpad" }
 
 [devices."receiver:aabbccdd:slot:1".lighting]
 enabled = true
@@ -79,7 +79,7 @@ host_switch_targets = ["receiver:aabbccdd:slot:1"]
 fn_lock = false
 
 [devices."receiver:aabbccdd:slot:2".bindings]
-KeySearch = "MissionControl"
+KeySearch = "OmarchyMenu"
 KeyScreenCapture = "Sleep"
 
 # Since schema 5 a device is keyed by what it *is* — `unit:<hex>` or
@@ -113,5 +113,12 @@ dpi = 800
 
 # Global function-key remapping, independent of a device.
 [keyboard.bindings]
-f1 = "MissionControl"
-"shift+command+f5" = "ShowDesktop"
+f1 = "OmarchyMenu"
+"shift+command+f5" = "ToggleScratchpad"
+
+# Omalogi: replace a built-in action with a shell command everywhere it is
+# bound (any device, profile, gesture, F-key, or Actions Ring slot). Keys are
+# one-shot action names; values run through `sh -c`.
+[commands]
+FormerWorkspace = "omarchy-launch-browser"
+VolumeUp = "pamixer -i 2"

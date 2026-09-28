@@ -130,6 +130,9 @@ pub struct MouseModelView {
     gesture_active_dir: Option<GestureDirection>,
     action_picker_open: bool,
     action_search: Entity<InputState>,
+    /// Draft for the picker's "Run Shell Command" editor.
+    command_input: Entity<InputState>,
+    command_editor_open: bool,
     _state_obs: Subscription,
 }
 
@@ -144,6 +147,9 @@ impl MouseModelView {
             }
         })
         .detach();
+        // A shell example, not prose: the same in every language.
+        let command_input =
+            cx.new(|cx| InputState::new(window, cx).placeholder("omarchy-launch-browser"));
         let state_obs = AppState::repaint_on(cx, |event| {
             matches!(
                 event,
@@ -160,6 +166,8 @@ impl MouseModelView {
             gesture_active_dir: None,
             action_picker_open: false,
             action_search,
+            command_input,
+            command_editor_open: false,
             _state_obs: state_obs,
         }
     }
@@ -168,15 +176,21 @@ impl MouseModelView {
     /// `cx.notify()` to re-render.
     pub(crate) fn set_gesture_selected_dir(&mut self, dir: Option<GestureDirection>) {
         self.gesture_active_dir = dir;
-        self.action_picker_open = false;
+        self.close_action_picker();
     }
 
     pub(super) fn toggle_action_picker(&mut self) {
         self.action_picker_open = !self.action_picker_open;
+        self.command_editor_open = false;
     }
 
     pub(super) fn close_action_picker(&mut self) {
         self.action_picker_open = false;
+        self.command_editor_open = false;
+    }
+
+    pub(super) fn set_command_editor_open(&mut self, open: bool) {
+        self.command_editor_open = open;
     }
 
     fn reset_for_device(&mut self, device_key: Option<DeviceKey>) {
@@ -187,14 +201,14 @@ impl MouseModelView {
         self.hovered = None;
         self.selected = None;
         self.gesture_active_dir = None;
-        self.action_picker_open = false;
+        self.close_action_picker();
     }
 
     fn select(&mut self, control: MouseControlId) {
         if self.selected != Some(control) {
             self.selected = Some(control);
             self.gesture_active_dir = None;
-            self.action_picker_open = false;
+            self.close_action_picker();
         }
     }
 }
@@ -314,6 +328,7 @@ impl Render for MouseModelView {
                 selected: self.selected,
                 gesture_direction: self.gesture_active_dir,
                 action_picker_open: self.action_picker_open,
+                command_editor_open: self.command_editor_open,
                 bindings,
                 gesture_maps,
                 dpi_gestures,
@@ -321,6 +336,7 @@ impl Render for MouseModelView {
                 overridden,
             },
             &self.action_search,
+            &self.command_input,
             &view,
             cx,
         );

@@ -171,18 +171,18 @@ pub enum MediaKey {
 /// OS has no equivalent at all, a debug-logged no-op.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NativeAction {
-    /// Show all windows across spaces (macOS Mission Control).
-    MissionControl,
-    /// Show all windows of the frontmost app (macOS App Exposé).
-    AppExpose,
-    /// Switch to the previous desktop/space.
-    PreviousDesktop,
-    /// Switch to the next desktop/space.
-    NextDesktop,
-    /// Hide all windows to reveal the desktop.
-    ShowDesktop,
-    /// Open the application launcher.
-    LaunchpadShow,
+    /// Toggle the Omarchy menu.
+    OmarchyMenu,
+    /// Return to the previously focused workspace.
+    FormerWorkspace,
+    /// Switch to the previous workspace.
+    PreviousWorkspace,
+    /// Switch to the next workspace.
+    NextWorkspace,
+    /// Toggle the scratchpad special workspace.
+    ToggleScratchpad,
+    /// Toggle the application menu.
+    AppsMenu,
     /// Lock the screen.
     LockScreen,
     /// Capture a full-screen screenshot.
@@ -241,12 +241,12 @@ impl Action {
             Action::PrevTab => Effect::Shortcut(Shortcut::PrevTab),
             Action::ReloadPage => Effect::Shortcut(Shortcut::ReloadPage),
 
-            Action::MissionControl => Effect::Native(NativeAction::MissionControl),
-            Action::AppExpose => Effect::Native(NativeAction::AppExpose),
-            Action::PreviousDesktop => Effect::Native(NativeAction::PreviousDesktop),
-            Action::NextDesktop => Effect::Native(NativeAction::NextDesktop),
-            Action::ShowDesktop => Effect::Native(NativeAction::ShowDesktop),
-            Action::LaunchpadShow => Effect::Native(NativeAction::LaunchpadShow),
+            Action::OmarchyMenu => Effect::Native(NativeAction::OmarchyMenu),
+            Action::FormerWorkspace => Effect::Native(NativeAction::FormerWorkspace),
+            Action::PreviousWorkspace => Effect::Native(NativeAction::PreviousWorkspace),
+            Action::NextWorkspace => Effect::Native(NativeAction::NextWorkspace),
+            Action::ToggleScratchpad => Effect::Native(NativeAction::ToggleScratchpad),
+            Action::AppsMenu => Effect::Native(NativeAction::AppsMenu),
 
             Action::LockScreen => Effect::Native(NativeAction::LockScreen),
             Action::Screenshot => Effect::Native(NativeAction::Screenshot),

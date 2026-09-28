@@ -37,7 +37,6 @@ use crate::ui::theme::{self, Palette, Typography as _};
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PowerUserKind {
     TypeText,
-    RunAppleScript,
     RunShellCommand,
     Workflow,
 }
@@ -46,7 +45,6 @@ impl PowerUserKind {
     fn heading_key(self) -> &'static str {
         match self {
             Self::TypeText => "actions.type_text_heading",
-            Self::RunAppleScript => "actions.run_applescript_heading",
             Self::RunShellCommand => "actions.run_shell_command_heading",
             Self::Workflow => "actions.workflow_heading",
         }
@@ -56,7 +54,6 @@ impl PowerUserKind {
 pub(crate) fn text_editor_placeholder(kind: PowerUserKind) -> gpui::SharedString {
     match kind {
         PowerUserKind::TypeText => tr!("actions.type_text_placeholder"),
-        PowerUserKind::RunAppleScript => "display dialog \"Hello\"".into(),
         PowerUserKind::RunShellCommand => "echo hello".into(),
         PowerUserKind::Workflow => "".into(),
     }
@@ -65,7 +62,6 @@ pub(crate) fn text_editor_placeholder(kind: PowerUserKind) -> gpui::SharedString
 pub(crate) fn text_editor_seed(action: Option<&Action>, kind: PowerUserKind) -> String {
     match (action, kind) {
         (Some(Action::TypeText(text)), PowerUserKind::TypeText)
-        | (Some(Action::RunAppleScript(text)), PowerUserKind::RunAppleScript)
         | (Some(Action::RunShellCommand(text)), PowerUserKind::RunShellCommand) => text.clone(),
         _ => String::new(),
     }
@@ -98,7 +94,7 @@ pub fn editor_card(
     }
 }
 
-/// The TypeText / RunAppleScript / RunShellCommand editors share a single text
+/// The TypeText / RunShellCommand editors share a single text
 /// field; only the commit wrapping differs.
 fn text_editor_card(
     trigger: KeyTrigger,
@@ -159,7 +155,6 @@ fn editor_action_row(
                         .unwrap_or_default();
                     let action = match kind {
                         PowerUserKind::TypeText => Action::TypeText(text),
-                        PowerUserKind::RunAppleScript => Action::RunAppleScript(text),
                         PowerUserKind::RunShellCommand => Action::RunShellCommand(text),
                         PowerUserKind::Workflow => return,
                     };
@@ -329,17 +324,15 @@ mod tests {
     fn text_editor_seed_only_uses_matching_power_user_action() {
         assert_eq!(
             text_editor_seed(
-                Some(&Action::RunAppleScript(
-                    "tell app \"Finder\" to activate".into()
-                )),
-                PowerUserKind::RunAppleScript,
+                Some(&Action::RunShellCommand("omarchy-menu toggle".into())),
+                PowerUserKind::RunShellCommand,
             ),
-            "tell app \"Finder\" to activate"
+            "omarchy-menu toggle"
         );
         assert_eq!(
             text_editor_seed(
                 Some(&Action::RunShellCommand("echo nope".into())),
-                PowerUserKind::RunAppleScript,
+                PowerUserKind::TypeText,
             ),
             ""
         );
@@ -353,10 +346,7 @@ mod tests {
             steps
         );
         assert!(
-            workflow_editor_seed(Some(&Action::RunAppleScript(
-                "display dialog \"Hello\"".into()
-            )))
-            .is_empty()
+            workflow_editor_seed(Some(&Action::RunShellCommand("echo hello".into()))).is_empty()
         );
     }
 }

@@ -84,18 +84,35 @@ pub enum Action {
     ReloadPage,
 
     // ── Navigation / Window ───────────────────────────────────────────────────
-    /// macOS Mission Control (⌃↑).
-    MissionControl,
-    /// macOS App Exposé — all windows for the current app (⌃↓).
-    AppExpose,
-    /// Switch to the previous desktop / Space.
-    PreviousDesktop,
-    /// Switch to the next desktop / Space.
-    NextDesktop,
-    /// Show the desktop (hide all windows).
-    ShowDesktop,
-    /// Open Launchpad.
-    LaunchpadShow,
+    //
+    // Omalogi renamed these six in place from upstream's macOS vocabulary
+    // (ADR-0005). Each keeps its declaration slot, so the serde variant index
+    // is unchanged, and a `serde(alias)` still reads the upstream name from an
+    // older `config.toml`; the next save writes the Omalogi name.
+    /// Toggle the Omarchy menu (`omarchy-menu toggle`, SUPER+SPACE).
+    /// Upstream: `MissionControl`.
+    #[serde(alias = "MissionControl")]
+    OmarchyMenu,
+    /// Return to the previously focused Hyprland workspace (SUPER+CTRL+TAB).
+    /// Upstream: `AppExpose`.
+    #[serde(alias = "AppExpose")]
+    FormerWorkspace,
+    /// Switch to the previous Hyprland workspace (SUPER+SHIFT+TAB).
+    /// Upstream: `PreviousDesktop`.
+    #[serde(alias = "PreviousDesktop")]
+    PreviousWorkspace,
+    /// Switch to the next Hyprland workspace (SUPER+TAB).
+    /// Upstream: `NextDesktop`.
+    #[serde(alias = "NextDesktop")]
+    NextWorkspace,
+    /// Toggle the Hyprland scratchpad special workspace (SUPER+S).
+    /// Upstream: `ShowDesktop`.
+    #[serde(alias = "ShowDesktop")]
+    ToggleScratchpad,
+    /// Toggle the Omarchy apps menu (`omarchy-menu toggle apps`,
+    /// SUPER+ALT+SPACE). Upstream: `LaunchpadShow`.
+    #[serde(alias = "LaunchpadShow")]
+    AppsMenu,
 
     // ── System ────────────────────────────────────────────────────────────────
     /// Lock the screen (⌘⌃Q on macOS).
@@ -257,12 +274,12 @@ macro_rules! for_each_unit_action {
             PrevTab "Previous Tab" "actions.previous_tab" Browser PreviousTab,
             ReloadPage "Reload Page" "actions.reload_page" Browser Reload,
             // Navigation
-            MissionControl "Mission Control" "actions.mission_control" Navigation Grid,
-            AppExpose "App Exposé" "actions.app_expose" Navigation Layers,
-            PreviousDesktop "Previous Desktop" "actions.previous_desktop" Navigation PreviousDesktop,
-            NextDesktop "Next Desktop" "actions.next_desktop" Navigation NextDesktop,
-            ShowDesktop "Show Desktop" "actions.show_desktop" Navigation Monitor,
-            LaunchpadShow "Launchpad" "actions.launchpad" Navigation Applications,
+            OmarchyMenu "Omarchy Menu" "actions.omarchy_menu" Navigation Grid,
+            FormerWorkspace "Former Workspace" "actions.former_workspace" Navigation Layers,
+            PreviousWorkspace "Previous Workspace" "actions.previous_workspace" Navigation PreviousDesktop,
+            NextWorkspace "Next Workspace" "actions.next_workspace" Navigation NextDesktop,
+            ToggleScratchpad "Toggle Scratchpad" "actions.toggle_scratchpad" Navigation Monitor,
+            AppsMenu "Apps Menu" "actions.apps_menu" Navigation Applications,
             // System
             None "Do Nothing" "pointer.do_nothing" System Ban,
             LockScreen "Lock Screen" "actions.lock_screen" System Lock,

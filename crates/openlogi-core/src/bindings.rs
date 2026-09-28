@@ -199,12 +199,16 @@ mod tests {
     #[test]
     fn an_explicitly_bound_tap_survives_the_inert_default() {
         let mut cfg = Config::default();
-        cfg.set_binding("2b034", ButtonId::Thumbwheel, Action::AppExpose.into());
+        cfg.set_binding(
+            "2b034",
+            ButtonId::Thumbwheel,
+            Action::FormerWorkspace.into(),
+        );
 
         let projected = bindings_for(&cfg, Some("2b034"), None);
         assert_eq!(
             projected.get(&ButtonId::Thumbwheel),
-            Some(&Action::AppExpose)
+            Some(&Action::FormerWorkspace)
         );
     }
 
@@ -241,7 +245,7 @@ mod tests {
             ButtonId::GestureButton,
             Binding::Gesture(BTreeMap::from([(
                 GestureDirection::Up,
-                Action::MissionControl,
+                Action::OmarchyMenu,
             )])),
         );
 

@@ -14,14 +14,32 @@ down are upstream OpenLogi's history.
 - Hyprland/Omarchy dispatch for window-manager actions: workspace switching,
   lock, full-screen and region screenshots, the Omarchy menu, and the
   scratchpad, with a fallback to the generic key chords.
+- `[commands]` in `config.toml`: replace any one-shot action with a shell
+  command everywhere it is bound. A failing command raises a rate-limited
+  desktop notification (ADR-0005).
+- **Run Shell Command…** in the mouse button, gesture, and Actions Ring
+  pickers.
+- `openlogi reload` applies a hand-edited `config.toml` to the running agent.
 
 ### Changed
 - Linux-only: macOS and Windows backends, bundling, signing, and release
   workflows removed; upstream-pulled crates keep their platform code so
   upstream release tags merge cleanly (ADR-0004).
 - Product name, icon, packaging metadata, and in-app links point at Omalogi.
+- **Breaking (config):** the Navigation actions are Omarchy actions now
+  (ADR-0005): `MissionControl` → `OmarchyMenu` (Omarchy menu),
+  `AppExpose` → `FormerWorkspace` (previously focused workspace),
+  `PreviousDesktop`/`NextDesktop` → `PreviousWorkspace`/`NextWorkspace`,
+  `ShowDesktop` → `ToggleScratchpad`, `LaunchpadShow` → `AppsMenu`
+  (`omarchy-menu toggle apps`). Old names still load and are rewritten on
+  save; a config Omalogi saved no longer loads in OpenLogi.
+- Run AppleScript is no longer offered in the GUI.
+- `RunShellCommand` no longer blocks its thread on a backgrounded child, and
+  reports failure the same way as `[commands]`.
 
 ### Fixed
+- Mission Control and App Exposé did nothing on Omarchy; they are now the
+  Omarchy menu and former-workspace actions.
 - Show Desktop used a Hyprland dispatcher that does not exist
   (`workspace.toggle_n`); it now uses `workspace.toggle_special`.
 - Screenshot opened the interactive picker; it now captures the full screen.

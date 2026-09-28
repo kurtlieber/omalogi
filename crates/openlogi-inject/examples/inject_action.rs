@@ -29,7 +29,7 @@
 //! LeftClick RightClick MiddleClick MouseBack MouseForward
 //! Copy Paste Cut Undo Redo SelectAll Find Save
 //! BrowserBack BrowserForward NewTab CloseTab ReopenTab NextTab PrevTab ReloadPage
-//! MissionControl AppExpose PreviousDesktop NextDesktop ShowDesktop LaunchpadShow
+//! OmarchyMenu FormerWorkspace PreviousWorkspace NextWorkspace ToggleScratchpad AppsMenu
 //! LockScreen Screenshot
 //! PlayPause NextTrack PrevTrack VolumeUp VolumeDown MuteVolume
 //! CycleDpiPresets ToggleSmartShift
@@ -174,8 +174,8 @@ fn print_usage() {
                   Copy Paste Cut Undo Redo SelectAll Find Save\n\
                   BrowserBack BrowserForward NewTab CloseTab ReopenTab\n\
                   NextTab PrevTab ReloadPage\n\
-                  MissionControl AppExpose PreviousDesktop NextDesktop\n\
-                  ShowDesktop LaunchpadShow\n\
+                  OmarchyMenu FormerWorkspace PreviousWorkspace NextWorkspace\n\
+                  ToggleScratchpad AppsMenu\n\
                   LockScreen Screenshot\n\
                   PlayPause NextTrack PrevTrack VolumeUp VolumeDown MuteVolume\n\
                   CycleDpiPresets ToggleSmartShift\n\

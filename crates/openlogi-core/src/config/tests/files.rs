@@ -11,8 +11,9 @@ fn canonical_configuration_example_parses() {
     let Some(Binding::LongPress(long_press)) = bindings.get(&ButtonId::DpiToggle) else {
         panic!("documented long-press binding should keep its shape");
     };
-    assert_eq!(long_press.short(), &Action::ShowDesktop);
-    assert_eq!(long_press.long(), &Action::MissionControl);
+    assert_eq!(long_press.short(), &Action::ToggleScratchpad);
+    assert_eq!(long_press.long(), &Action::OmarchyMenu);
+    assert_eq!(config.commands.get(&Action::VolumeUp), Some("pamixer -i 2"));
 }
 
 #[test]

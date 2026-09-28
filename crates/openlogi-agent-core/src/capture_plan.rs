@@ -327,7 +327,7 @@ mod tests {
             ButtonId::Back,
             Binding::LongPress(LongPressBinding::new(
                 default_binding(ButtonId::Back),
-                Action::MissionControl,
+                Action::OmarchyMenu,
             )),
         );
 
@@ -574,7 +574,7 @@ mod tests {
 
     #[test]
     fn gestures_off_gesture_button_is_diverted_for_its_single_action() {
-        // Turning gestures off leaves `Single(MissionControl)`. The firmware
+        // Turning gestures off leaves `Single(OmarchyMenu)`. The firmware
         // gives the gesture button no host action, so that must be diverted.
         let mut cfg = Config::default();
         cfg.set_gesture_mode("2b042", ButtonId::GestureButton, false);

@@ -4,7 +4,7 @@ mod inject;
 
 pub use inject::{
     HeldChord, SmoothScrollPhase, ax_navigate_browser, execute, post_scroll, post_smooth_scroll,
-    press_hold,
+    press_hold, set_command_overrides,
 };
 
 #[cfg(target_os = "linux")]

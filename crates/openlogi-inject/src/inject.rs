@@ -8,13 +8,14 @@
 #[cfg(target_os = "linux")]
 use std::collections::HashMap;
 #[cfg(target_os = "linux")]
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::{LazyLock, Mutex, PoisonError, RwLock};
 
 #[cfg(target_os = "linux")]
 use openlogi_core::binding::KeyboardUsage;
 use openlogi_core::binding::{Action, KeyCombo};
 #[cfg(target_os = "linux")]
 use openlogi_core::binding::{Script, WorkflowStep};
+use openlogi_core::config::CommandOverrides;
 use openlogi_core::scroll::ScrollDelta;
 
 #[cfg(target_os = "linux")]
@@ -168,8 +169,8 @@ fn run_workflow(steps: &[WorkflowStep]) {
 /// `HYPRLAND_INSTANCE_SIGNATURE` (`hyprctl`, `omarchy-system-lock`,
 /// `omarchy-capture-screenshot`, `omarchy-menu`) with legacy-chord fallback;
 /// off Hyprland the GNOME/KDE chords apply and actions with no universal
-/// Linux equivalent (`MissionControl`, `ShowDesktop`, `LaunchpadShow`,
-/// `AppExpose`) are silently skipped (debug-logged). `CustomShortcut` maps
+/// Linux equivalent (`OmarchyMenu`, `FormerWorkspace`, `ToggleScratchpad`,
+/// `AppsMenu`) are silently skipped (debug-logged). `CustomShortcut` maps
 /// macOS `kVK_*` codes to Linux key codes; macOS Cmd maps to Ctrl.
 ///
 /// Device-side actions (`CycleDpiPresets`, `SetDpiPreset`,
@@ -185,6 +186,12 @@ fn run_workflow(steps: &[WorkflowStep]) {
 /// bind a button to any action in the GUI and confirm the expected system event
 /// fires when the button is pressed (or use the `inject_action` example).
 pub fn execute(action: &Action) {
+    #[cfg(target_os = "linux")]
+    if let Some(command) = command_override(action) {
+        let label = action.label();
+        std::thread::spawn(move || platform::run_user_command(&label, &command));
+        return;
+    }
     if let Action::OpenApplication(target) = action {
         let expanded = shellexpand::tilde(target.path());
         if let Err(error) = opener::open(expanded.as_ref()) {
@@ -208,6 +215,37 @@ pub fn execute(action: &Action) {
             );
         }
     }
+}
+
+/// The `[commands]` overrides [`execute`] consults before any built-in
+/// behaviour. The agent replaces them on startup and on every config reload.
+#[cfg(target_os = "linux")]
+static COMMAND_OVERRIDES: LazyLock<RwLock<CommandOverrides>> =
+    LazyLock::new(|| RwLock::new(CommandOverrides::default()));
+
+/// Replace the `[commands]` overrides (ADR-0005): from now on [`execute`] runs
+/// the configured shell command instead of each overridden action.
+pub fn set_command_overrides(overrides: CommandOverrides) {
+    cfg_select! {
+        target_os = "linux" => {
+            if !overrides.is_empty() {
+                tracing::info!(count = overrides.iter().count(), "[commands] overrides active");
+            }
+            *COMMAND_OVERRIDES.write().unwrap_or_else(PoisonError::into_inner) = overrides;
+        }
+        _ => {
+            let _ = overrides;
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn command_override(action: &Action) -> Option<String> {
+    COMMAND_OVERRIDES
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(action)
+        .map(str::to_owned)
 }
 
 /// One synthetic held chord, released exactly once when dropped.

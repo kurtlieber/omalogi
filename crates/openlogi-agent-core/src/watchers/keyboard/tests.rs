@@ -29,7 +29,7 @@ fn live_session(epoch: u64) -> RunningKeyboardSession {
     CaptureSession::active(
         session_id(epoch),
         target(),
-        dispatch(Action::MissionControl),
+        dispatch(Action::OmarchyMenu),
         stop,
     )
 }
@@ -49,7 +49,7 @@ async fn publication_and_receiver_request_change_wanted_state_immediately() {
         config_key: "keyboard-a".to_owned(),
         route: target().route,
         wanted: target().wanted,
-        bindings: dispatch(Action::MissionControl).bindings,
+        bindings: dispatch(Action::OmarchyMenu).bindings,
     };
 
     spec_tx.send_replace(Some(Arc::new(published)));
@@ -101,7 +101,7 @@ fn accepts_inputs_from_the_current_session_until_teardown_finishes() {
 fn binding_changes_refresh_without_rearming_hardware() {
     let mut session = live_session(7);
     let current_target = session.target().clone();
-    let new_dispatch = dispatch(Action::ShowDesktop);
+    let new_dispatch = dispatch(Action::ToggleScratchpad);
 
     assert_eq!(
         session.reconcile(Some((&current_target, &new_dispatch))),
@@ -117,7 +117,7 @@ fn target_changes_freeze_dispatch_until_teardown_finishes() {
     let old_dispatch = session.dispatch().clone();
     let mut replacement = target();
     replacement.wanted.insert(0x00d4, ButtonId::KeySearch);
-    let new_dispatch = dispatch(Action::ShowDesktop);
+    let new_dispatch = dispatch(Action::ToggleScratchpad);
 
     assert!(
         replacement != *session.target(),
@@ -175,7 +175,7 @@ async fn recovery_manager_waits_for_control_events_and_shutdown_between_retries(
             config_key: "keyboard-a".to_owned(),
             route: target().route,
             wanted: target().wanted,
-            bindings: dispatch(Action::MissionControl).bindings,
+            bindings: dispatch(Action::OmarchyMenu).bindings,
         })));
         let capture = CaptureChannelSlot::default();
         // A missing inventory channel makes the real session task fail without

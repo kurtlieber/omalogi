@@ -119,6 +119,7 @@ impl Agent for AgentServer {
             Ok(config) => {
                 let launch_at_login = config.app_settings.launch_at_login;
                 let language = config.app_settings.language.clone();
+                openlogi_inject::set_command_overrides(config.commands.clone());
                 self.orchestrator.lock().await.reload_config(config);
                 self.dispatcher.cancel_all_buttons();
                 // The GUI's launch-at-login toggle reaches us through this

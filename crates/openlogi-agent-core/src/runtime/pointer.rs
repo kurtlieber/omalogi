@@ -1,6 +1,6 @@
 //! Admission of pointer-selected actions, on the action worker, never the tap.
 
-use openlogi_core::binding::{Action, Effect, NativeAction};
+use openlogi_core::binding::{Action, Effect};
 use openlogi_hook::PointerTarget;
 
 use super::ActionDispatchTarget;
@@ -48,8 +48,7 @@ fn pointer_action_allowed(
         | Effect::Key(_)
         | Effect::HeldKey(_)
         | Effect::Text(_)
-        | Effect::Script(_)
-        | Effect::Native(NativeAction::AppExpose) => true,
+        | Effect::Script(_) => true,
         Effect::None
         | Effect::Click(_)
         | Effect::Scroll { .. }
@@ -76,7 +75,7 @@ mod tests {
     #[test]
     fn desktop_switch_does_not_require_browser_focus_or_send_browser_navigation() {
         assert!(pointer_action_allowed(
-            &Action::NextDesktop,
+            &Action::NextWorkspace,
             PointerTarget::Desktop,
             PointerTarget::Desktop,
             || false
@@ -96,7 +95,6 @@ mod tests {
             Action::BrowserForward,
             Action::CustomShortcut(shortcut),
             Action::TypeText("hello".into()),
-            Action::AppExpose,
         ] {
             assert!(!pointer_action_allowed(&action, BROWSER, BROWSER, || false));
             assert!(pointer_action_allowed(&action, BROWSER, BROWSER, || true));
@@ -118,7 +116,7 @@ mod tests {
             (PointerTarget::Unsupported, PointerTarget::Unsupported),
         ] {
             assert!(!pointer_action_allowed(
-                &Action::NextDesktop,
+                &Action::NextWorkspace,
                 captured,
                 current,
                 || true

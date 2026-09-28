@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+mod commands;
 mod device;
 #[cfg(feature = "fs")]
 mod file;
@@ -29,6 +30,7 @@ mod settings;
 #[cfg(feature = "fs")]
 mod tests;
 
+pub use commands::CommandOverrides;
 pub use device::{DeviceConfig, DeviceIdentity, LinkConfig, LinkOverrides};
 #[cfg(feature = "fs")]
 pub use file::{ConfigError, ConfigFile};
@@ -136,6 +138,10 @@ pub struct Config {
     /// `[keyboard]` section loading unchanged.
     #[serde(default)]
     pub keyboard: KeyboardConfig,
+    /// Omalogi: shell commands that replace a built-in action everywhere it
+    /// is bound (ADR-0005). Validated on load; see [`CommandOverrides`].
+    #[serde(default, skip_serializing_if = "CommandOverrides::is_empty")]
+    pub commands: CommandOverrides,
 }
 
 impl Default for Config {
@@ -147,6 +153,7 @@ impl Default for Config {
             devices: BTreeMap::new(),
             ephemeral: false,
             keyboard: KeyboardConfig::default(),
+            commands: CommandOverrides::default(),
         }
     }
 }

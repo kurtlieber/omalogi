@@ -10,6 +10,7 @@ pub mod diag;
 pub mod fixture;
 pub mod light;
 pub mod list;
+pub mod reload;
 pub mod snapshot;
 
 #[derive(Debug, Subcommand)]
@@ -34,6 +35,8 @@ pub enum Command {
     /// Inspect and control standalone Logitech lights.
     #[command(subcommand)]
     Light(light::LightCmd),
+    /// Apply a hand-edited config.toml to the running agent.
+    Reload,
 }
 
 impl Command {
@@ -54,6 +57,7 @@ impl Command {
             Self::Diag(cmd) => cmd.run().await?,
             Self::Fixture(cmd) => cmd.run().await?,
             Self::Light(cmd) => cmd.run().await?,
+            Self::Reload => reload::run().await?,
         }
         Ok(ExitCode::SUCCESS)
     }

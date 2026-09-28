@@ -829,11 +829,6 @@ fn panel_action_rows(
             "action-icons/keyboard.svg",
         ),
         (
-            PowerUserKind::RunAppleScript,
-            "Run AppleScript…",
-            "action-icons/terminal.svg",
-        ),
-        (
             PowerUserKind::RunShellCommand,
             "Run Shell Command…",
             "action-icons/terminal.svg",
@@ -855,10 +850,6 @@ fn panel_action_rows(
                     let selected = matches!(
                         (current, kind),
                         (Some(Action::TypeText(_)), PowerUserKind::TypeText)
-                            | (
-                                Some(Action::RunAppleScript(_)),
-                                PowerUserKind::RunAppleScript
-                            )
                             | (
                                 Some(Action::RunShellCommand(_)),
                                 PowerUserKind::RunShellCommand

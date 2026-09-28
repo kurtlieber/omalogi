@@ -31,6 +31,7 @@ pub struct ActionRingPanel {
     selected_slot: ActionRingSlot,
     application_input: Option<Entity<InputState>>,
     shortcut_input: Option<Entity<InputState>>,
+    command_input: Option<Entity<InputState>>,
     library_scroll: ScrollHandle,
     #[expect(dead_code, reason = "held to keep the AppState subscription alive")]
     state_obs: Subscription,
@@ -46,6 +47,7 @@ impl ActionRingPanel {
             selected_slot: ActionRingSlot::Top,
             application_input: None,
             shortcut_input: None,
+            command_input: None,
             library_scroll: ScrollHandle::new(),
             state_obs,
         }
@@ -58,23 +60,44 @@ impl Focusable for ActionRingPanel {
     }
 }
 
+impl ActionRingPanel {
+    /// The slot editor's path, shortcut, and command inputs, created on first
+    /// render and re-localized on every one.
+    fn library_inputs(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> [Entity<InputState>; 3] {
+        [
+            editor_input(
+                &mut self.application_input,
+                tr!("action_ring.application_folder_path_or_url"),
+                window,
+                cx,
+            ),
+            editor_input(
+                &mut self.shortcut_input,
+                tr!("action_ring.shortcut_e_g_cmd_plus_shift_plus_p"),
+                window,
+                cx,
+            ),
+            // A shell example, not prose: the same in every language.
+            editor_input(
+                &mut self.command_input,
+                "omarchy-launch-browser",
+                window,
+                cx,
+            ),
+        ]
+    }
+}
+
 impl Render for ActionRingPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let pal = theme::palette(cx);
         let (ring, layout) = action_ring_editor_state(cx);
         let haptics_supported = current_device_supports_haptics(cx);
-        let application_input = editor_input(
-            &mut self.application_input,
-            tr!("action_ring.application_folder_path_or_url"),
-            window,
-            cx,
-        );
-        let shortcut_input = editor_input(
-            &mut self.shortcut_input,
-            tr!("action_ring.shortcut_e_g_cmd_plus_shift_plus_p"),
-            window,
-            cx,
-        );
+        let [application_input, shortcut_input, command_input] = self.library_inputs(window, cx);
         let view = cx.entity();
 
         v_flex()
@@ -109,6 +132,7 @@ impl Render for ActionRingPanel {
                         layout.slots.get(&self.selected_slot),
                         &application_input,
                         &shortcut_input,
+                        &command_input,
                         &self.library_scroll,
                         pal,
                     )),

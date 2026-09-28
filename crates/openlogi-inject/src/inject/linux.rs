@@ -7,7 +7,7 @@
 
 use std::io;
 use std::process::{Command, Stdio};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use evdev::uinput::VirtualDevice;
@@ -150,24 +150,20 @@ fn dispatch_native(action: &Action, native: NativeAction) {
     let ctrl = KeyCode::KEY_LEFTCTRL;
     let alt = KeyCode::KEY_LEFTALT;
     match native {
-        // AppExpose has no Hyprland equivalent either — skipped everywhere.
-        NativeAction::AppExpose => {
-            tracing::debug!(
-                action = action.label(),
-                "no Hyprland/Linux equivalent — action skipped"
-            );
-        }
         // Handled on Hyprland above; off Hyprland no universal Linux
         // equivalent exists and the compositor shortcut varies.
-        NativeAction::MissionControl | NativeAction::ShowDesktop | NativeAction::LaunchpadShow => {
+        NativeAction::OmarchyMenu
+        | NativeAction::FormerWorkspace
+        | NativeAction::ToggleScratchpad
+        | NativeAction::AppsMenu => {
             tracing::debug!(
                 action = action.label(),
                 "no Linux equivalent — action skipped"
             );
         }
         // Ctrl+Alt+←/→ is the default in GNOME and KDE.
-        NativeAction::PreviousDesktop => press_key(&[ctrl, alt], KeyCode::KEY_LEFT),
-        NativeAction::NextDesktop => press_key(&[ctrl, alt], KeyCode::KEY_RIGHT),
+        NativeAction::PreviousWorkspace => press_key(&[ctrl, alt], KeyCode::KEY_LEFT),
+        NativeAction::NextWorkspace => press_key(&[ctrl, alt], KeyCode::KEY_RIGHT),
         // logind LockSession() via the system bus; falls back to Super+L.
         NativeAction::LockScreen => lock_screen(),
         // Region vs full-screen capture depends on the desktop environment's
@@ -188,7 +184,7 @@ fn on_hyprland() -> bool {
 /// successfully, `false` to take the legacy chord path in [`dispatch_native`].
 fn dispatch_hyprland(action: &Action, native: NativeAction) -> bool {
     let Some((program, args)) = hyprland_command(native) else {
-        // AppExpose/Sleep have no Hyprland mapping by design — no failure.
+        // Sleep has no Hyprland mapping by design — no failure.
         return false;
     };
     let handled = run_helper(program, args);
@@ -210,11 +206,11 @@ fn dispatch_hyprland(action: &Action, native: NativeAction) -> bool {
 fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'static str])> {
     match native {
         // SUPER+SHIFT+TAB / SUPER+TAB.
-        NativeAction::PreviousDesktop => Some((
+        NativeAction::PreviousWorkspace => Some((
             "hyprctl",
             &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"],
         )),
-        NativeAction::NextDesktop => Some((
+        NativeAction::NextWorkspace => Some((
             "hyprctl",
             &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"],
         )),
@@ -225,20 +221,24 @@ fn hyprland_command(native: NativeAction) -> Option<(&'static str, &'static [&'s
         // binding); a full-screen capture needs the explicit mode.
         NativeAction::Screenshot => Some(("omarchy-capture-screenshot", &["fullscreen"])),
         NativeAction::CaptureRegion => Some(("omarchy-capture-screenshot", &["region"])),
-        NativeAction::LaunchpadShow => Some(("omarchy-menu", &["toggle"])),
-        // Omarchy has no "show desktop"; the nearest stock gesture is its
-        // scratchpad toggle (SUPER+S).
-        NativeAction::ShowDesktop => Some((
+        // SUPER+CTRL+TAB.
+        NativeAction::FormerWorkspace => Some((
+            "hyprctl",
+            &["eval", "hl.dispatch(hl.dsp.focus({workspace='previous'}))"],
+        )),
+        // SUPER+SPACE / SUPER+ALT+SPACE.
+        NativeAction::OmarchyMenu => Some(("omarchy-menu", &["toggle"])),
+        NativeAction::AppsMenu => Some(("omarchy-menu", &["toggle", "apps"])),
+        // SUPER+S.
+        NativeAction::ToggleScratchpad => Some((
             "hyprctl",
             &[
                 "eval",
                 "hl.dispatch(hl.dsp.workspace.toggle_special('scratchpad'))",
             ],
         )),
-        // Neither has an Omarchy equivalent: hyprexpo/overview is not
-        // installed (probed 2026-09-27 — no expo/overview anywhere in
-        // Omarchy stock or user config); Sleep never reaches here (see above).
-        NativeAction::MissionControl | NativeAction::AppExpose | NativeAction::Sleep => None,
+        // Sleep never reaches here (see `dispatch_native`).
+        NativeAction::Sleep => None,
     }
 }
 
@@ -320,9 +320,82 @@ pub(super) fn run_apple_script(_src: &str) {
 }
 
 pub(super) fn run_shell_command(cmd: &str) {
-    let _ = std::process::Command::new("/bin/sh")
+    run_user_command("Run Command", cmd);
+}
+
+/// Run a user-written shell string to completion on the calling thread —
+/// always a thread of its own, never the action worker — and report failure.
+///
+/// Stdio is `/dev/null`, so a backgrounded grandchild that inherits stdout
+/// cannot keep this thread waiting after the command itself exits. A spawn
+/// error or a non-zero exit is logged and raised as a desktop notification
+/// (rate-limited per action); nothing falls back to the built-in action,
+/// because a user's command replaces it (ADR-0005).
+pub(super) fn run_user_command(label: &str, cmd: &str) {
+    let status = Command::new("/bin/sh")
         .args(["-c", cmd])
-        .output();
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let failure = match status {
+        Ok(status) if status.success() => {
+            tracing::debug!(action = label, "user command ran");
+            return;
+        }
+        Ok(status) => status.code().map_or_else(
+            || format!("`{cmd}` was killed ({status})"),
+            |code| format!("`{cmd}` exited with status {code}"),
+        ),
+        Err(error) => format!("`{cmd}` could not start: {error}"),
+    };
+    tracing::warn!(action = label, %failure, "user command failed");
+    if COMMAND_FAILURES.should_notify(label, Instant::now()) {
+        let _ = Command::new("notify-send")
+            .args([
+                "--app-name=Omalogi",
+                &format!("{label}: command failed"),
+                &failure,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+/// At most one failure notification per action in this window, so a button
+/// mashed against a broken script produces one popup, not a stack of them.
+const FAILURE_NOTIFY_INTERVAL: Duration = Duration::from_secs(10);
+
+static COMMAND_FAILURES: FailureThrottle = FailureThrottle::new();
+
+/// Remembers when each action last raised a failure notification.
+struct FailureThrottle {
+    last: Mutex<Vec<(String, Instant)>>,
+}
+
+impl FailureThrottle {
+    const fn new() -> Self {
+        Self {
+            last: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn should_notify(&self, label: &str, now: Instant) -> bool {
+        let mut last = self.last.lock().unwrap_or_else(PoisonError::into_inner);
+        match last.iter_mut().find(|(seen, _)| seen == label) {
+            Some((_, at)) if now.duration_since(*at) < FAILURE_NOTIFY_INTERVAL => false,
+            Some((_, at)) => {
+                *at = now;
+                true
+            }
+            None => {
+                last.push((label.to_owned(), now));
+                true
+            }
+        }
+    }
 }
 
 /// Must keep the `OpenLogi ` prefix: the hook refuses to grab any device whose
@@ -808,9 +881,11 @@ mod tests {
     use evdev::KeyCode;
     use openlogi_core::binding::{KeyCombo, NativeAction, Shortcut};
 
+    use std::time::{Duration, Instant};
+
     use super::{
-        combo, hid_usage_to_linux, hyprland_command, key_ev, key_phase_events,
-        modifiers_to_keycodes, run_helper, syn,
+        FAILURE_NOTIFY_INTERVAL, FailureThrottle, combo, hid_usage_to_linux, hyprland_command,
+        key_ev, key_phase_events, modifiers_to_keycodes, run_helper, run_user_command, syn,
     };
     use crate::inject::KeyPhase;
 
@@ -889,18 +964,18 @@ mod tests {
     /// Pin the Hyprland helper table: each NativeAction must map to the
     /// exact `omarchy-*`/`hyprctl` argv the compositor expects, and
     /// Screenshot vs CaptureRegion must stay distinct (upstream mapped both
-    /// to Print). AppExpose/Sleep intentionally have no mapping.
+    /// to Print). Sleep intentionally has no mapping (logind handles it).
     #[test]
     fn hyprland_table_pins_helper_argv() {
         use NativeAction::*;
         let table = [
             (
-                PreviousDesktop,
+                PreviousWorkspace,
                 "hyprctl",
                 &["eval", "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"][..],
             ),
             (
-                NextDesktop,
+                NextWorkspace,
                 "hyprctl",
                 &["eval", "hl.dispatch(hl.dsp.focus({workspace='e+1'}))"][..],
             ),
@@ -911,9 +986,15 @@ mod tests {
                 &["fullscreen"][..],
             ),
             (CaptureRegion, "omarchy-capture-screenshot", &["region"][..]),
-            (LaunchpadShow, "omarchy-menu", &["toggle"][..]),
             (
-                ShowDesktop,
+                FormerWorkspace,
+                "hyprctl",
+                &["eval", "hl.dispatch(hl.dsp.focus({workspace='previous'}))"][..],
+            ),
+            (OmarchyMenu, "omarchy-menu", &["toggle"][..]),
+            (AppsMenu, "omarchy-menu", &["toggle", "apps"][..]),
+            (
+                ToggleScratchpad,
                 "hyprctl",
                 &[
                     "eval",
@@ -924,8 +1005,6 @@ mod tests {
         for (action, program, args) in table {
             assert_eq!(hyprland_command(action), Some((program, args)));
         }
-        assert_eq!(hyprland_command(MissionControl), None);
-        assert_eq!(hyprland_command(AppExpose), None);
         assert_eq!(hyprland_command(Sleep), None);
         // Screenshot and region capture must not collapse to one command.
         assert_ne!(
@@ -950,5 +1029,27 @@ mod tests {
         let started = std::time::Instant::now();
         assert!(run_helper("sleep", &["30"]));
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// A user command that backgrounds a long-lived child returns as soon as
+    /// the shell exits: stdio is not piped, so the grandchild cannot hold the
+    /// command thread open.
+    #[test]
+    fn user_command_does_not_wait_for_backgrounded_children() {
+        let started = std::time::Instant::now();
+        run_user_command("test", "sleep 30 & true");
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// One failing action raises one notification per interval; another
+    /// action is throttled independently.
+    #[test]
+    fn failure_notifications_are_rate_limited_per_action() {
+        let throttle = FailureThrottle::new();
+        let t0 = Instant::now();
+        assert!(throttle.should_notify("Omarchy Menu", t0));
+        assert!(!throttle.should_notify("Omarchy Menu", t0 + Duration::from_secs(1)));
+        assert!(throttle.should_notify("Apps Menu", t0 + Duration::from_secs(1)));
+        assert!(throttle.should_notify("Omarchy Menu", t0 + FAILURE_NOTIFY_INTERVAL));
     }
 }
