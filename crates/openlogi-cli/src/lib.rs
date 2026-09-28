@@ -27,11 +27,12 @@ struct Cli {
 /// Returns the exit status the process should terminate with — `list` uses a
 /// distinct one to report that no hardware is connected.
 pub async fn run() -> Result<ExitCode> {
-    // Omalogi-owned delta (ADR-0006).
-    openlogi_core::paths::adopt_legacy_dirs();
     openlogi_core::logging::init_stderr();
 
     let cli = Cli::parse();
+    // Omalogi-owned delta (ADR-0006). After parsing, so `--help` and
+    // `--version` exit without touching the user's directories.
+    openlogi_core::paths::adopt_legacy_dirs();
     let command = cli
         .cmd
         .unwrap_or(cmd::Command::List(cmd::list::ListArgs {}));
