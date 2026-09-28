@@ -325,7 +325,10 @@ pub(super) fn run_shell_command(cmd: &str) {
         .output();
 }
 
-const DEVICE_NAME: &str = "Omalogi action injector";
+/// Must keep the `OpenLogi ` prefix: the hook refuses to grab any device whose
+/// name starts with it (`openlogi-hook`'s `OPENLOGI_DEVICE_PREFIX`), and the
+/// name is an internal identifier, not branding (ADR-0001).
+const DEVICE_NAME: &str = "OpenLogi action injector";
 
 static VIRTUAL_INPUT: LazyLock<Option<Mutex<VirtualDevice>>> = LazyLock::new(|| {
     build()

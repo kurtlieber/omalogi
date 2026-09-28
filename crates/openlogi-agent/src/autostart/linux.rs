@@ -491,6 +491,9 @@ fn render_unit(exe: &str) -> String {
 /// back in verbatim: running [`escape_systemd_exec`] over an already-escaped
 /// value would double `%%` into `%%%%`, and a unit this app wrote would fail to
 /// match itself.
+// The `Description` keeps upstream's wording on purpose: `is_generated_unit`
+// recognizes a unit this app wrote by exact match, so rebranding it would orphan
+// every unit already written.
 fn render_unit_with_exec(exec_start: &str) -> String {
     format!(
         "[Unit]\n\
