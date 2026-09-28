@@ -27,6 +27,7 @@ use openlogi_core::config::Config;
 use tracing::{info, warn};
 
 fn main() {
+    openlogi_core::paths::adopt_legacy_dirs();
     logging::init();
 
     // Single-instance guard: the agent owns all device I/O, the input hook, and
@@ -45,7 +46,7 @@ fn main() {
             // provably speaks an older protocol, replace it; otherwise exit
             // as the duplicate we are.
             let Some(g) = takeover::try_replace_stale() else {
-                info!(path = %path.display(), "another openlogi-agent is already running — exiting");
+                info!(path = %path.display(), "another omalogi-agent is already running — exiting");
                 return;
             };
             info!("replaced a stale agent — continuing as the new one");

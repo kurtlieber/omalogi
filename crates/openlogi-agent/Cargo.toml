@@ -11,7 +11,7 @@ description = "OpenLogi background agent — headless, always-on owner of the in
 publish = false
 
 [[bin]]
-name = "openlogi-agent"
+name = "omalogi-agent"
 path = "src/main.rs"
 
 # Hardware-free mock agent for GUI development: serves a scripted inventory over

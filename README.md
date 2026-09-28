@@ -47,9 +47,9 @@ Inherited from OpenLogi and working on Omarchy:
 |---|---|---|
 | Omarchy Menu | `omarchy-menu toggle` | SUPER+SPACE |
 | Apps Menu | `omarchy-menu toggle apps` | SUPER+ALT+SPACE |
-| Former Workspace | `hyprctl eval` → `hl.dsp.focus({workspace='previous'})` | SUPER+CTRL+TAB |
-| Previous / Next Workspace | `hyprctl eval` → `hl.dsp.focus({workspace='e-1' / 'e+1'})` | SUPER+(SHIFT+)TAB |
-| Toggle Scratchpad | `hyprctl eval` → `hl.dsp.workspace.toggle_special('scratchpad')` | SUPER+S |
+| Former Workspace | `hyprctl eval "hl.dispatch(hl.dsp.focus({workspace='previous'}))"` | SUPER+CTRL+TAB |
+| Previous / Next Workspace | `hyprctl eval "hl.dispatch(hl.dsp.focus({workspace='e-1'}))"` / `'e+1'` | SUPER+(SHIFT+)TAB |
+| Toggle Scratchpad | `hyprctl eval "hl.dispatch(hl.dsp.workspace.toggle_special('scratchpad'))"` | SUPER+S |
 | Lock Screen | `omarchy-system-lock` | |
 | Screenshot | `omarchy-capture-screenshot fullscreen` | |
 | Capture Region | `omarchy-capture-screenshot region` | |
@@ -67,7 +67,7 @@ see [ADR-0005](docs/adr/0005-omarchy-action-vocabulary.md).
 ## Custom commands
 
 Point any built-in action at your own script with a `[commands]` table in
-`~/.config/openlogi/config.toml`. The override applies everywhere that action
+`~/.config/omalogi/config.toml`. The override applies everywhere that action
 is bound:
 
 ```toml
@@ -76,7 +76,7 @@ OmarchyMenu = "~/bin/my-overview"
 VolumeUp = "pamixer -i 2"
 ```
 
-Run `openlogi reload` to apply the edit. If a command fails, you get a
+Run `omalogi reload` to apply the edit. If a command fails, you get a
 desktop notification and the built-in action does not run. To give just one
 button a command, pick **Run Shell Command…** in that button's action list.
 Details: [Configuration → Command overrides](docs/CONFIGURATION.md#command-overrides).
@@ -84,8 +84,8 @@ Details: [Configuration → Command overrides](docs/CONFIGURATION.md#command-ove
 ## Install
 
 > [!IMPORTANT]
-> Quit **Solaar** or **Logi Options+** first. They compete for HID++ access,
-> and only one app can own a receiver at a time.
+> Omalogi replaces **Solaar**: only one app can own a receiver at a time, so
+> the package conflicts with it and pacman offers to remove it.
 
 Build from source with a stable Rust toolchain:
 
@@ -93,15 +93,15 @@ Build from source with a stable Rust toolchain:
 git clone https://github.com/kurtlieber/omalogi
 cd omalogi
 cargo xtask linux package          # builds and packages; needs nfpm
-sudo pacman -U target/release/openlogi-*.pkg.tar.zst
-systemctl --user enable --now openlogi-agent.service
+sudo pacman -U target/release/omalogi-*.pkg.tar.zst
+systemctl --user enable --now omalogi-agent.service
 ```
 
 The package installs udev rules that give your user access to `/dev/hidraw*`,
-`/dev/uinput`, and your mouse's input node without `sudo`. Binaries, the
-systemd unit, and the config directory keep upstream's `openlogi` names, so
-upstream updates keep merging cleanly (see
-[ADR-0001](docs/adr/0001-keep-crate-names.md)).
+`/dev/uinput`, and your mouse's input node without `sudo`. It conflicts with
+OpenLogi and Solaar, which would compete for the same devices. An existing
+`~/.config/openlogi` directory is moved to `~/.config/omalogi` on first run
+([ADR-0006](docs/adr/0006-omalogi-user-facing-identity.md)).
 
 Manual installs, NixOS, and troubleshooting: [docs/INSTALL-linux.md](docs/INSTALL-linux.md).
 

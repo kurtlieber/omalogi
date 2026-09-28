@@ -1,13 +1,13 @@
 //! Per-OS application directories, following the XDG Base Directory spec on
 //! **every** platform — including macOS, so configuration lives at the
-//! familiar `~/.config/openlogi/` rather than macOS's
+//! familiar `~/.config/omalogi/` rather than macOS's
 //! `~/Library/Application Support/`.
 //!
 //! | kind   | env override        | default                       |
 //! |--------|---------------------|-------------------------------|
-//! | config | `$XDG_CONFIG_HOME`  | `~/.config/openlogi`          |
-//! | data   | `$XDG_DATA_HOME`    | `~/.local/share/openlogi`     |
-//! | state  | `$XDG_STATE_HOME`   | `~/.local/state/openlogi`     |
+//! | config | `$XDG_CONFIG_HOME`  | `~/.config/omalogi`           |
+//! | data   | `$XDG_DATA_HOME`    | `~/.local/share/omalogi`      |
+//! | state  | `$XDG_STATE_HOME`   | `~/.local/state/omalogi`      |
 //!
 //! On Windows `$HOME` falls back to `%USERPROFILE%`, so paths resolve to
 //! `%USERPROFILE%\.config\openlogi` etc.
@@ -29,7 +29,13 @@ use etcetera::{BaseStrategy, base_strategy::Xdg};
 use thiserror::Error;
 
 /// Production subdirectory created under each XDG base directory.
-const APP_DIR: &str = "openlogi";
+///
+/// (Omalogi-owned delta: `omalogi`, adopting an existing `openlogi` directory
+/// at startup — see [`adopt_legacy_dirs`] and ADR-0006.)
+const APP_DIR: &str = "omalogi";
+
+/// The directory name OpenLogi, and Omalogi before ADR-0006, used.
+const LEGACY_APP_DIR: &str = "openlogi";
 /// Local macOS dev builds use a separate profile so development agents
 /// cannot take over the installed app's socket, lock, config, or asset cache.
 const DEV_APP_DIR: &str = "openlogi-dev";
@@ -128,6 +134,35 @@ fn xdg() -> Result<Xdg, PathsError> {
     Xdg::new().map_err(|_| PathsError::HomeNotFound)
 }
 
+/// Move `openlogi` config, data, and state directories to their `omalogi`
+/// names, so an existing `config.toml` carries over. Each binary calls this
+/// first thing in `main`, before anything resolves a path; a base that
+/// already has an `omalogi` directory is left alone.
+pub fn adopt_legacy_dirs() {
+    if Profile::current() != Profile::Production {
+        return;
+    }
+    let Ok(xdg) = xdg() else { return };
+    let bases = [
+        Some(xdg.config_dir()),
+        Some(xdg.data_dir()),
+        xdg.state_dir(),
+    ];
+    for base in bases.into_iter().flatten() {
+        adopt_legacy_dir(&base);
+    }
+}
+
+fn adopt_legacy_dir(base: &std::path::Path) {
+    let legacy = base.join(LEGACY_APP_DIR);
+    let current = base.join(APP_DIR);
+    if legacy.is_dir() && !current.exists() {
+        // Best effort: a failed rename leaves the legacy directory in place and
+        // the app starts from a fresh one, as on a first install.
+        let _ = std::fs::rename(&legacy, &current);
+    }
+}
+
 fn app_dir() -> &'static str {
     Profile::current().app_dir()
 }
@@ -174,7 +209,7 @@ pub fn home_dir() -> Result<PathBuf, PathsError> {
     Ok(xdg()?.home_dir().to_path_buf())
 }
 
-/// The raw XDG config home directory (without the `openlogi` subdirectory).
+/// The raw XDG config home directory (without the `omalogi` subdirectory).
 ///
 /// Honours an absolute `$XDG_CONFIG_HOME`; falls back to `~/.config`.
 /// Useful when reading files that belong to another app's namespace under the
@@ -184,7 +219,7 @@ pub fn xdg_config_home() -> Result<PathBuf, PathsError> {
     Ok(xdg()?.config_dir())
 }
 
-/// The raw XDG data home directory (without the `openlogi` subdirectory).
+/// The raw XDG data home directory (without the `omalogi` subdirectory).
 ///
 /// Honours an absolute `$XDG_DATA_HOME`; falls back to `~/.local/share`.
 /// The counterpart to [`xdg_config_home`] for files that belong to another
@@ -197,7 +232,7 @@ pub fn xdg_data_home() -> Result<PathBuf, PathsError> {
 
 /// Directory holding the user's `config.toml`.
 ///
-/// `$XDG_CONFIG_HOME/openlogi`, default `~/.config/openlogi`.
+/// `$XDG_CONFIG_HOME/omalogi`, default `~/.config/omalogi`.
 /// Local macOS dev builds use `openlogi-dev` instead.
 pub fn config_dir() -> Result<PathBuf, PathsError> {
     config_dir_for(Profile::current())
@@ -216,7 +251,7 @@ pub fn config_path() -> Result<PathBuf, PathsError> {
 /// Directory for downloaded application data; the device-render asset cache
 /// lives under `data_dir()/assets`.
 ///
-/// `$XDG_DATA_HOME/openlogi`, default `~/.local/share/openlogi`.
+/// `$XDG_DATA_HOME/omalogi`, default `~/.local/share/omalogi`.
 /// Local macOS dev builds use `openlogi-dev` instead.
 pub fn data_dir() -> Result<PathBuf, PathsError> {
     Ok(xdg()?.data_dir().join(app_dir()))
@@ -225,7 +260,7 @@ pub fn data_dir() -> Result<PathBuf, PathsError> {
 /// Directory for logs and other rebuildable process state — the agent's
 /// rotated log files live here.
 ///
-/// `$XDG_STATE_HOME/openlogi`, default `~/.local/state/openlogi`.
+/// `$XDG_STATE_HOME/omalogi`, default `~/.local/state/omalogi`.
 /// Local macOS dev builds use `openlogi-dev` instead.
 pub fn state_dir() -> Result<PathBuf, PathsError> {
     let xdg = xdg()?;
@@ -266,18 +301,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn config_dir_keeps_openlogi_under_xdg_config_home() {
-        assert!(config_dir().expect("config dir").ends_with("openlogi"));
+    fn config_dir_is_omalogi_under_xdg_config_home() {
+        assert!(config_dir().expect("config dir").ends_with("omalogi"));
     }
 
     #[test]
-    fn data_dir_keeps_openlogi_under_xdg_data_home() {
-        assert!(data_dir().expect("data dir").ends_with("openlogi"));
+    fn data_dir_is_omalogi_under_xdg_data_home() {
+        assert!(data_dir().expect("data dir").ends_with("omalogi"));
     }
 
     #[test]
-    fn runtime_dir_keeps_openlogi_suffix() {
-        assert!(runtime_dir().expect("runtime dir").ends_with("openlogi"));
+    fn runtime_dir_has_omalogi_suffix() {
+        assert!(runtime_dir().expect("runtime dir").ends_with("omalogi"));
     }
 
     #[test]
@@ -295,7 +330,30 @@ mod tests {
         assert!(
             agent_socket_path_for(Profile::Production)
                 .expect("production socket")
-                .ends_with("openlogi/agent.sock")
+                .ends_with("omalogi/agent.sock")
         );
+    }
+
+    #[test]
+    fn a_legacy_openlogi_directory_is_adopted_once() {
+        let base = std::env::temp_dir().join(format!("omalogi-adopt-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("openlogi")).expect("legacy dir");
+        std::fs::write(base.join("openlogi/config.toml"), "x").expect("legacy config");
+
+        adopt_legacy_dir(&base);
+        assert!(!base.join("openlogi").exists());
+        assert_eq!(
+            std::fs::read_to_string(base.join("omalogi/config.toml")).expect("adopted"),
+            "x"
+        );
+
+        // An existing omalogi directory wins; the legacy one is left untouched.
+        std::fs::create_dir_all(base.join("openlogi")).expect("second legacy dir");
+        adopt_legacy_dir(&base);
+        assert!(base.join("openlogi").is_dir());
+        assert!(base.join("omalogi/config.toml").is_file());
+
+        std::fs::remove_dir_all(&base).expect("cleanup");
     }
 }

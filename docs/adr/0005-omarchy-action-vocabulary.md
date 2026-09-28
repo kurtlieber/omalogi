@@ -46,7 +46,7 @@ whether to pay for it here.
    action does not run. The injector (`openlogi_inject::execute`) applies the
    table; the agent installs it at startup and on every `reload_config`.
 
-3. **`openlogi reload`** asks the running agent to re-read `config.toml`, so a
+3. **`omalogi reload`** (named `openlogi reload` until ADR-0006) asks the running agent to re-read `config.toml`, so a
    hand edit applies without restarting the service.
 
 4. The GUI offers **Run Shell Command…** in the mouse button, gesture, and

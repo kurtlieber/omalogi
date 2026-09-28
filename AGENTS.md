@@ -14,7 +14,7 @@ Fork contract — read before changing anything:
   crates, Omarchy action).
 - Protocol crates stay byte-identical to upstream and are pulled on upstream
   release tags; never edit them here. Procedure: [docs/PROTOCOL-PULLS.md](docs/PROTOCOL-PULLS.md).
-- Decisions live in [docs/adr/](docs/adr/). Crate names stay `openlogi-*` (ADR-0001).
+- Decisions live in [docs/adr/](docs/adr/). Crate names stay `openlogi-*` (ADR-0001); executables, the unit, and paths are `omalogi` (ADR-0006).
 
 The developer handbook (toolchain, packaging, release pipeline) is
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). This file is the agent-facing contract:
@@ -26,7 +26,7 @@ touching an area.
 
 For runtime HID and input state, the long-running **GUI** and **overlay** are pure IPC
 clients; the **agent** owns the input hook and HID I/O. The CLI is a diagnostic
-exception: `openlogi list` prefers a compatible agent snapshot and falls back to
+exception: `omalogi list` prefers a compatible agent snapshot and falls back to
 direct enumeration when none is available, while hardware-diagnostic subcommands
 access devices directly.
 
@@ -140,8 +140,8 @@ A skipped job is **not** a pass. These procedures do not authorize a push.
 
 - Dev-run with `cargo run -p openlogi-agent` in one terminal and
   `cargo run -p openlogi-desktop` in another. A second instance of either exits on
-  the singleton lock: stop the packaged `openlogi-agent.service`
-  (`systemctl --user stop openlogi-agent`) and quit the old GUI before judging a
+  the singleton lock: stop the packaged `omalogi-agent.service`
+  (`systemctl --user stop omalogi-agent`) and quit the old GUI before judging a
   change "not applied".
 - No hardware attached? `cargo run -p openlogi-agent --bin openlogi-agent-mock` serves
   a scripted inventory over the dev IPC socket, so the GUI runs unmodified and the

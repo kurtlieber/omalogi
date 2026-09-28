@@ -1,7 +1,7 @@
 # Nix package for OpenLogi on Linux (CLI + agent + GUI/overlay).
 #
 # Build via the flake:
-#   nix build .#openlogi
+#   nix build .#omalogi
 #
 # ## Why this doesn't suffer the #262 cargoHash churn
 #
@@ -95,7 +95,7 @@ let
   };
 in
 rustPlatform.buildRustPackage {
-  pname = "openlogi";
+  pname = "omalogi";
   inherit version;
   src = source;
   strictDeps = true;
@@ -143,13 +143,13 @@ rustPlatform.buildRustPackage {
   # also builds the development-only openlogi-agent-mock target.
   cargoBuildFlags = [
     "--package=openlogi"
-    "--bin=openlogi"
+    "--bin=omalogi"
     "--package=openlogi-agent"
-    "--bin=openlogi-agent"
+    "--bin=omalogi-agent"
     "--package=openlogi-desktop"
-    "--bin=openlogi-desktop"
+    "--bin=omalogi-desktop"
     "--package=openlogi-overlay"
-    "--bin=openlogi-overlay"
+    "--bin=omalogi-overlay"
   ];
 
   # Match Linux CI's package selection.
@@ -162,55 +162,55 @@ rustPlatform.buildRustPackage {
     runHook preInstall
 
     releaseDir=target/${stdenv.hostPlatform.rust.rustcTarget}/release
-    for binary in openlogi openlogi-agent openlogi-desktop openlogi-overlay; do
+    for binary in omalogi omalogi-agent omalogi-desktop omalogi-overlay; do
       install -Dm755 "$releaseDir/$binary" "$out/bin/$binary"
     done
 
-    install -Dm644 packaging/linux/desktop/openlogi.desktop \
-      "$out/share/applications/openlogi.desktop"
+    install -Dm644 packaging/linux/desktop/omalogi.desktop \
+      "$out/share/applications/omalogi.desktop"
     # Every standard indexed hicolor size: a stock `hicolor/index.theme`
     # stops at 512x512, so an icon installed only under `1024x1024/apps` is
     # invisible to launchers that resolve by theme index.
     install -Dm644 assets/icon/omalogi.png \
-      "$out/share/icons/hicolor/1024x1024/apps/openlogi.png"
+      "$out/share/icons/hicolor/1024x1024/apps/omalogi.png"
     for size in 512 256 128 64 48 32 16; do
       install -Dm644 "assets/icon/omalogi-$size.png" \
-        "$out/share/icons/hicolor/''${size}x''${size}/apps/openlogi.png"
+        "$out/share/icons/hicolor/''${size}x''${size}/apps/omalogi.png"
     done
-    install -Dm644 packaging/linux/udev/70-openlogi.rules \
-      "$out/lib/udev/rules.d/70-openlogi.rules"
-    install -Dm644 packaging/linux/systemd/openlogi-agent.service \
-      "$out/share/systemd/user/openlogi-agent.service"
-    install -Dm644 LICENSE-APACHE "$out/share/licenses/openlogi/LICENSE-APACHE"
-    install -Dm644 LICENSE-MIT "$out/share/licenses/openlogi/LICENSE-MIT"
+    install -Dm644 packaging/linux/udev/70-omalogi.rules \
+      "$out/lib/udev/rules.d/70-omalogi.rules"
+    install -Dm644 packaging/linux/systemd/omalogi-agent.service \
+      "$out/share/systemd/user/omalogi-agent.service"
+    install -Dm644 LICENSE-APACHE "$out/share/licenses/omalogi/LICENSE-APACHE"
+    install -Dm644 LICENSE-MIT "$out/share/licenses/omalogi/LICENSE-MIT"
 
-    substituteInPlace "$out/share/systemd/user/openlogi-agent.service" \
+    substituteInPlace "$out/share/systemd/user/omalogi-agent.service" \
       --replace-fail \
-        "ExecStart=/usr/bin/openlogi-agent" \
-        "ExecStart=$out/bin/openlogi-agent"
+        "ExecStart=/usr/bin/omalogi-agent" \
+        "ExecStart=$out/bin/omalogi-agent"
 
     runHook postInstall
   '';
 
   postFixup = ''
-    patchelf --add-rpath "${runtimeLibs}" "$out/bin/openlogi-desktop"
+    patchelf --add-rpath "${runtimeLibs}" "$out/bin/omalogi-desktop"
   '';
 
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
   preInstallCheck = ''
-    for binary in openlogi openlogi-agent openlogi-desktop openlogi-overlay; do
+    for binary in omalogi omalogi-agent omalogi-desktop omalogi-overlay; do
       test -x "$out/bin/$binary"
     done
     test ! -e "$out/bin/openlogi-agent-mock"
-    test -f "$out/lib/udev/rules.d/70-openlogi.rules"
-    test -f "$out/share/applications/openlogi.desktop"
+    test -f "$out/lib/udev/rules.d/70-omalogi.rules"
+    test -f "$out/share/applications/omalogi.desktop"
     for size in 1024 512 256 128 64 48 32 16; do
-      test -f "$out/share/icons/hicolor/''${size}x''${size}/apps/openlogi.png"
+      test -f "$out/share/icons/hicolor/''${size}x''${size}/apps/omalogi.png"
     done
     grep -Fqx \
-      "ExecStart=$out/bin/openlogi-agent" \
-      "$out/share/systemd/user/openlogi-agent.service"
+      "ExecStart=$out/bin/omalogi-agent" \
+      "$out/share/systemd/user/omalogi-agent.service"
   '';
 
   meta = {
@@ -220,7 +220,7 @@ rustPlatform.buildRustPackage {
       mit
       asl20
     ];
-    mainProgram = "openlogi";
+    mainProgram = "omalogi";
     platforms = lib.platforms.linux;
   };
 }

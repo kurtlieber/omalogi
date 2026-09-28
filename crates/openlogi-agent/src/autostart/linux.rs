@@ -7,8 +7,8 @@
 //! package script can clean a home directory.
 //!
 //! Otherwise a systemd **user** unit at
-//! `$XDG_DATA_HOME/systemd/user/openlogi-agent.service` (default
-//! `~/.local/share/systemd/user/openlogi-agent.service`) is written/removed,
+//! `$XDG_DATA_HOME/systemd/user/omalogi-agent.service` (default
+//! `~/.local/share/systemd/user/omalogi-agent.service`) is written/removed,
 //! then `systemctl --user daemon-reload` and `enable`/`disable` are called.
 //! That is the tier systemd reserves for units installed *on* a user's behalf;
 //! `$XDG_CONFIG_HOME/systemd/user` outranks it and belongs to the user, so a
@@ -47,7 +47,20 @@ pub(super) fn reconcile(enabled: bool) {
 }
 
 /// Name of the systemd user unit file.
-const UNIT_NAME: &str = "openlogi-agent.service";
+const UNIT_NAME: &str = "omalogi-agent.service";
+
+/// The unit name OpenLogi, and Omalogi before ADR-0006, generated. Read only,
+/// to retire a unit of that name that this app rendered — see
+/// [`retire_openlogi_units`].
+const OPENLOGI_UNIT_NAME: &str = "openlogi-agent.service";
+
+/// The generated unit's `Description`. Part of the exact-match provenance
+/// check in [`is_generated_unit`], so changing it orphans every unit written
+/// under the old text.
+const DESCRIPTION: &str = "Omalogi background agent (Logitech HID++ device control)";
+
+/// The `Description` OpenLogi's generated units carry, for recognising them.
+const OPENLOGI_DESCRIPTION: &str = "OpenLogi background agent (Logitech HID++ device control)";
 
 /// Unit directories to fall back on when systemd cannot be asked for the real
 /// load path, highest precedence first.
@@ -143,6 +156,7 @@ fn exclude_dirs(dirs: Vec<PathBuf>, exclude: &[PathBuf]) -> Vec<PathBuf> {
 fn apply(enabled: bool) -> io::Result<()> {
     let exe = std::env::current_exe()?;
     migrate_legacy_unit();
+    retire_openlogi_units();
 
     let path = generated_unit_path()?;
     let current = std::fs::read_to_string(&path).ok();
@@ -307,7 +321,7 @@ fn disable_unit_if_ours() {
         return;
     };
     if !marker.exists() {
-        debug!("autostart enablement was not made by OpenLogi; leaving it alone");
+        debug!("autostart enablement was not made by Omalogi; leaving it alone");
         return;
     }
     if !run_systemctl(&["disable", UNIT_NAME]) {
@@ -319,8 +333,8 @@ fn disable_unit_if_ours() {
 }
 
 /// Path to the generated unit:
-/// `$XDG_DATA_HOME/systemd/user/openlogi-agent.service`
-/// (default `~/.local/share/systemd/user/openlogi-agent.service`).
+/// `$XDG_DATA_HOME/systemd/user/omalogi-agent.service`
+/// (default `~/.local/share/systemd/user/omalogi-agent.service`).
 ///
 /// The *data* tier, not `$XDG_CONFIG_HOME`: systemd ranks it below the user's
 /// own config directory, so a unit the user writes by hand always wins over
@@ -359,7 +373,7 @@ fn migrate_legacy_unit() {
     if !is_generated_unit(&contents) {
         warn!(
             path = %path.display(),
-            "leaving a hand-edited systemd user unit in place; it takes precedence over OpenLogi's own",
+            "leaving a hand-edited systemd user unit in place; it takes precedence over Omalogi's own",
         );
         return;
     }
@@ -379,6 +393,42 @@ fn migrate_legacy_unit() {
 /// Whether `contents` is a unit this app rendered, for *any* executable path.
 fn is_generated_unit(contents: &str) -> bool {
     exec_start_value(contents).is_some_and(|value| render_unit_with_exec(value) == contents)
+}
+
+/// Whether `contents` is an `openlogi-agent.service` that OpenLogi's agent, or
+/// Omalogi's before ADR-0006, rendered.
+fn is_openlogi_generated_unit(contents: &str) -> bool {
+    exec_start_value(contents)
+        .is_some_and(|value| render_template(OPENLOGI_DESCRIPTION, value) == contents)
+}
+
+/// Disable and remove the `openlogi-agent.service` units an earlier agent
+/// generated, in either user tier, so the renamed unit is the only one that
+/// starts an agent. A unit of that name this app did not render is left alone.
+fn retire_openlogi_units() {
+    let tiers = [
+        openlogi_core::paths::xdg_data_home(),
+        openlogi_core::paths::xdg_config_home(),
+    ];
+    for tier in tiers.into_iter().flatten() {
+        let path = tier.join("systemd").join("user").join(OPENLOGI_UNIT_NAME);
+        let Ok(contents) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        if !is_openlogi_generated_unit(&contents) {
+            continue;
+        }
+        run_systemctl(&["disable", OPENLOGI_UNIT_NAME]);
+        match std::fs::remove_file(&path) {
+            Ok(()) => {
+                info!(path = %path.display(), "retired the generated openlogi-agent unit");
+                run_systemctl(&["daemon-reload"]);
+            }
+            Err(e) => {
+                warn!(error = %e, path = %path.display(), "could not retire the openlogi-agent unit");
+            }
+        }
+    }
 }
 
 /// The verbatim, still-escaped value of the file's single `ExecStart=` line.
@@ -491,13 +541,16 @@ fn render_unit(exe: &str) -> String {
 /// back in verbatim: running [`escape_systemd_exec`] over an already-escaped
 /// value would double `%%` into `%%%%`, and a unit this app wrote would fail to
 /// match itself.
-// The `Description` keeps upstream's wording on purpose: `is_generated_unit`
-// recognizes a unit this app wrote by exact match, so rebranding it would orphan
-// every unit already written.
 fn render_unit_with_exec(exec_start: &str) -> String {
+    render_template(DESCRIPTION, exec_start)
+}
+
+/// The one unit template, parameterised by `Description` and an already
+/// escaped `ExecStart`.
+fn render_template(description: &str, exec_start: &str) -> String {
     format!(
         "[Unit]\n\
-        Description=OpenLogi background agent (Logitech HID++ device control)\n\
+        Description={description}\n\
         After=graphical-session.target\n\
         \n\
         [Service]\n\

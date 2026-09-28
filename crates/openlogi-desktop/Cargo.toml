@@ -7,12 +7,12 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "GPUI-based desktop UI for OpenLogi."
-default-run = "openlogi-desktop"
+default-run = "omalogi-desktop"
 # Distributed as a bundled app; Kit stays Git-pinned to embed its full themes.
 publish = false
 
 [[bin]]
-name = "openlogi-desktop"
+name = "omalogi-desktop"
 path = "src/main.rs"
 
 [dependencies]

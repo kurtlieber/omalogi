@@ -169,7 +169,7 @@ impl Armed {
         running.restart_hidpp_watchers();
         let (mut watchers, inventory_refresh) = startup::spawn_state_watchers(&running.shared);
 
-        info!("openlogi-agent started");
+        info!("omalogi-agent started");
         loop {
             tokio::select! {
                 biased;

@@ -33,6 +33,15 @@ down are upstream OpenLogi's history.
   `ShowDesktop` → `ToggleScratchpad`, `LaunchpadShow` → `AppsMenu`
   (`omarchy-menu toggle apps`). Old names still load and are rewritten on
   save; a config Omalogi saved no longer loads in OpenLogi.
+- **Breaking (install):** everything user-facing is named `omalogi`
+  (ADR-0006): the `omalogi`, `omalogi-desktop`, `omalogi-agent`, and
+  `omalogi-overlay` commands, `omalogi-agent.service`, `~/.config/omalogi`,
+  the `omalogi` package and window `app_id`, and the Nix outputs. An existing
+  `~/.config/openlogi` is moved on first run, and the agent retires an
+  `openlogi-agent.service` it generated. Re-enable autostart with
+  `systemctl --user enable --now omalogi-agent.service`.
+- The package conflicts with `openlogi`, `openlogi-bin`, `openlogi-git`, and
+  `solaar`.
 - Run AppleScript is no longer offered in the GUI.
 - `RunShellCommand` no longer blocks its thread on a backgrounded child, and
   reports failure the same way as `[commands]`.

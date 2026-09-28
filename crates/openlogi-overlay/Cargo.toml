@@ -11,7 +11,7 @@ description = "OpenLogi Actions Ring overlay — the cursor-centred radial menu,
 publish = false
 
 [[bin]]
-name = "openlogi-overlay"
+name = "omalogi-overlay"
 path = "src/main.rs"
 
 [dependencies]

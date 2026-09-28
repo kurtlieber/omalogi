@@ -1,7 +1,7 @@
 #!/bin/sh
-# OpenLogi Linux install script.
+# Omalogi Linux install script.
 #
-# Installs the four OpenLogi executables plus udev rules, the systemd user-unit
+# Installs the four Omalogi executables plus udev rules, the systemd user-unit
 # template, the .desktop launcher, and the app icon. Requires sudo for the
 # system-wide paths.
 #
@@ -11,7 +11,7 @@
 #
 # On systemd systems the udev rules are reloaded automatically. The agent
 # must be enabled per-user:
-#   systemctl --user enable --now openlogi-agent.service
+#   systemctl --user enable --now omalogi-agent.service
 
 set -eu
 
@@ -44,14 +44,14 @@ Options:
   --help            Show this help
 
 The script installs:
-  PREFIX/bin/openlogi
-  PREFIX/bin/openlogi-desktop
-  PREFIX/bin/openlogi-overlay
-  PREFIX/bin/openlogi-agent
-  /etc/udev/rules.d/70-openlogi.rules
-  /usr/lib/systemd/user/openlogi-agent.service  (if systemd is present)
-  /usr/share/applications/openlogi.desktop
-  /usr/share/icons/hicolor/<size>/apps/openlogi.png  (16 … 1024)
+  PREFIX/bin/omalogi
+  PREFIX/bin/omalogi-desktop
+  PREFIX/bin/omalogi-overlay
+  PREFIX/bin/omalogi-agent
+  /etc/udev/rules.d/70-omalogi.rules
+  /usr/lib/systemd/user/omalogi-agent.service  (if systemd is present)
+  /usr/share/applications/omalogi.desktop
+  /usr/share/icons/hicolor/<size>/apps/omalogi.png  (16 … 1024)
 EOF
   exit 0
 fi
@@ -65,7 +65,7 @@ BINDIR="${PREFIX}/bin"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="${REPO_ROOT}/target/release"
 
-for bin in openlogi openlogi-desktop openlogi-overlay openlogi-agent; do
+for bin in omalogi omalogi-desktop omalogi-overlay omalogi-agent; do
   if [ ! -x "${BUILD_DIR}/${bin}" ]; then
     echo "Error: ${BUILD_DIR}/${bin} not found." >&2
     echo "Build first: cargo build --release -p openlogi -p openlogi-desktop -p openlogi-overlay -p openlogi-agent" >&2
@@ -73,19 +73,41 @@ for bin in openlogi openlogi-desktop openlogi-overlay openlogi-agent; do
   fi
 done
 
+# ── pre-rename Omalogi install (ADR-0006) ─────────────────────────────────────
+
+# Omalogi used to install under upstream's `openlogi` names. Remove those files
+# only when the old desktop entry proves they were Omalogi's, so an upstream
+# OpenLogi install is never touched.
+if grep -qx 'Name=Omalogi' /usr/share/applications/openlogi.desktop 2>/dev/null; then
+  echo "Removing the pre-rename openlogi files …"
+  LEGACY_USER="${SUDO_USER:-$USER}"
+  if command -v systemctl >/dev/null 2>&1; then
+    sudo -u "$LEGACY_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$LEGACY_USER")" \
+      systemctl --user disable --now openlogi-agent.service 2>/dev/null || true
+  fi
+  sudo rm -f "${BINDIR}/openlogi" "${BINDIR}/openlogi-desktop" \
+    "${BINDIR}/openlogi-overlay" "${BINDIR}/openlogi-agent" \
+    /etc/udev/rules.d/70-openlogi.rules \
+    /usr/lib/systemd/user/openlogi-agent.service \
+    /usr/share/applications/openlogi.desktop
+  for size in 1024 512 256 128 64 48 32 16; do
+    sudo rm -f "/usr/share/icons/hicolor/${size}x${size}/apps/openlogi.png"
+  done
+fi
+
 # ── install binaries ───────────────────────────────────────────────────────────
 
 echo "Installing binaries to ${BINDIR} …"
-sudo install -Dm755 "${BUILD_DIR}/openlogi" "${BINDIR}/openlogi"
-sudo install -Dm755 "${BUILD_DIR}/openlogi-desktop" "${BINDIR}/openlogi-desktop"
-sudo install -Dm755 "${BUILD_DIR}/openlogi-overlay" "${BINDIR}/openlogi-overlay"
-sudo install -Dm755 "${BUILD_DIR}/openlogi-agent" "${BINDIR}/openlogi-agent"
+sudo install -Dm755 "${BUILD_DIR}/omalogi" "${BINDIR}/omalogi"
+sudo install -Dm755 "${BUILD_DIR}/omalogi-desktop" "${BINDIR}/omalogi-desktop"
+sudo install -Dm755 "${BUILD_DIR}/omalogi-overlay" "${BINDIR}/omalogi-overlay"
+sudo install -Dm755 "${BUILD_DIR}/omalogi-agent" "${BINDIR}/omalogi-agent"
 
 # ── udev rules ────────────────────────────────────────────────────────────────
 
 echo "Installing udev rules …"
-sudo install -Dm644 "${SCRIPT_DIR}/udev/70-openlogi.rules" \
-  /etc/udev/rules.d/70-openlogi.rules
+sudo install -Dm644 "${SCRIPT_DIR}/udev/70-omalogi.rules" \
+  /etc/udev/rules.d/70-omalogi.rules
 
 if command -v udevadm >/dev/null 2>&1; then
   echo "Reloading udev rules …"
@@ -103,9 +125,9 @@ if [ -d "$SYSTEMD_UNIT_DIR" ] || command -v systemctl >/dev/null 2>&1; then
   # Rewrite the packaged /usr/bin path to match the requested install prefix.
   # Escape the replacement so sed metacharacters (& \ |) in the path are literal.
   ESCAPED_BINDIR="$(printf '%s\n' "${BINDIR}" | sed 's|[&\\|]|\\&|g')"
-  sed "s|^ExecStart=/usr/bin/openlogi-agent$|ExecStart=${ESCAPED_BINDIR}/openlogi-agent|" \
-    "${SCRIPT_DIR}/systemd/openlogi-agent.service" |
-    sudo tee "${SYSTEMD_UNIT_DIR}/openlogi-agent.service" >/dev/null
+  sed "s|^ExecStart=/usr/bin/omalogi-agent$|ExecStart=${ESCAPED_BINDIR}/omalogi-agent|" \
+    "${SCRIPT_DIR}/systemd/omalogi-agent.service" |
+    sudo tee "${SYSTEMD_UNIT_DIR}/omalogi-agent.service" >/dev/null
   # Best-effort daemon-reload for the invoking user so a reinstall picks up
   # the updated unit without requiring a manual reload.
   INSTALL_USER="${SUDO_USER:-$USER}"
@@ -113,14 +135,15 @@ if [ -d "$SYSTEMD_UNIT_DIR" ] || command -v systemctl >/dev/null 2>&1; then
     XDG_RUNTIME_DIR="/run/user/$(id -u "$INSTALL_USER")" \
     systemctl --user daemon-reload 2>/dev/null || true
   echo "Enable the agent for your user with:"
-  echo "  systemctl --user enable --now openlogi-agent.service"
+  echo "  systemctl --user enable --now omalogi-agent.service"
 fi
 
 # ── desktop entry ─────────────────────────────────────────────────────────────
 
 echo "Installing desktop entry …"
-sudo install -Dm644 "${SCRIPT_DIR}/desktop/openlogi.desktop" \
-  /usr/share/applications/openlogi.desktop
+sudo install -Dm644 "${SCRIPT_DIR}/desktop/omalogi.desktop" \
+  /usr/share/applications/omalogi.desktop
+
 
 # ── icon ──────────────────────────────────────────────────────────────────────
 
@@ -131,12 +154,12 @@ ICON_SRC="${REPO_ROOT}/assets/icon/omalogi.png"
 if [ -f "$ICON_SRC" ]; then
   echo "Installing icon …"
   sudo install -Dm644 "$ICON_SRC" \
-    /usr/share/icons/hicolor/1024x1024/apps/openlogi.png
+    /usr/share/icons/hicolor/1024x1024/apps/omalogi.png
   for size in 512 256 128 64 48 32 16; do
     sized="${REPO_ROOT}/assets/icon/omalogi-${size}.png"
     [ -f "$sized" ] || continue
     sudo install -Dm644 "$sized" \
-      "/usr/share/icons/hicolor/${size}x${size}/apps/openlogi.png"
+      "/usr/share/icons/hicolor/${size}x${size}/apps/omalogi.png"
   done
   if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     sudo gtk-update-icon-cache -qtf /usr/share/icons/hicolor || true
@@ -148,5 +171,5 @@ if command -v update-desktop-database >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "OpenLogi installed. Run 'openlogi-desktop' to start, or enable the background"
-echo "agent with: systemctl --user enable --now openlogi-agent.service"
+echo "Omalogi installed. Run 'omalogi-desktop' to start, or enable the background"
+echo "agent with: systemctl --user enable --now omalogi-agent.service"

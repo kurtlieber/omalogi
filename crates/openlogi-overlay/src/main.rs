@@ -28,6 +28,7 @@ use crate::ring::RingView;
 use crate::session::{ClickAwaySession, claim_the_role, spawn_click_away_dismissal};
 
 fn main() -> Result<()> {
+    openlogi_core::paths::adopt_legacy_dirs();
     openlogi_core::logging::init_stderr();
 
     openlogi_core::locale::activate(None);

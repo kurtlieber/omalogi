@@ -29,22 +29,23 @@ cd omalogi
 cargo build --release -p openlogi -p openlogi-desktop -p openlogi-agent -p openlogi-overlay
 ```
 
-Crate and binary names stay `openlogi-*` on purpose (see
-[ADR-0001](adr/0001-keep-crate-names.md)). Four production executables land in
-`target/release/`:
+The crates keep upstream's `openlogi-*` names so upstream merges stay clean
+([ADR-0001](adr/0001-keep-crate-names.md)); the executables they build are
+Omalogi's ([ADR-0006](adr/0006-omalogi-user-facing-identity.md)). Four production
+executables land in `target/release/`:
 
 | Binary | Role |
 |---|---|
-| `openlogi` | CLI — inventory, diagnostics, asset sync |
-| `openlogi-desktop` | Desktop GUI |
-| `openlogi-overlay` | Actions Ring overlay helper |
-| `openlogi-agent` | Background agent — HID++ loop, input hook, Hyprland actions |
+| `omalogi` | CLI — inventory, diagnostics, asset sync |
+| `omalogi-desktop` | Desktop GUI |
+| `omalogi-overlay` | Actions Ring overlay helper |
+| `omalogi-agent` | Background agent — HID++ loop, input hook, Hyprland actions |
 
 To build an Arch package instead (`.pkg.tar.zst`, plus `.deb`/`.rpm`):
 
 ```sh
 cargo xtask linux package
-sudo pacman -U target/release/openlogi-*.pkg.tar.zst
+sudo pacman -U target/release/omalogi-*.pkg.tar.zst
 ```
 
 ## NixOS
@@ -65,7 +66,7 @@ aarch64 Linux:
       system = "x86_64-linux"; # or aarch64-linux
       modules = [
         omalogi.nixosModules.default
-        { programs.openlogi.enable = true; }
+        { programs.omalogi.enable = true; }
       ];
     };
   };
@@ -89,7 +90,7 @@ Install the bundled udev rules to grant access to the active-seat user without
 requiring `sudo` or group membership (requires `systemd-logind`):
 
 ```sh
-sudo cp packaging/linux/udev/70-openlogi.rules /etc/udev/rules.d/
+sudo cp packaging/linux/udev/70-omalogi.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
@@ -98,7 +99,7 @@ Verify access (should open without error):
 
 ```sh
 # Check uinput
-openlogi-agent --check-uinput 2>/dev/null || \
+omalogi-agent --check-uinput 2>/dev/null || \
     test -w /dev/uinput && echo "uinput OK"
 
 # Check a hidraw node
@@ -149,22 +150,22 @@ packaging/linux/uninstall.sh
 
 ## Autostart (launch at login)
 
-The background agent (`openlogi-agent`) must be running for the GUI and CLI to
+The background agent (`omalogi-agent`) must be running for the GUI and CLI to
 show connected devices. Enable it for your user session:
 
 ```sh
-systemctl --user enable --now openlogi-agent.service
+systemctl --user enable --now omalogi-agent.service
 ```
 
 Alternatively, toggle **Settings → General → Launch at login** in the GUI. When
 a packaged unit is already installed it simply enables that one. Otherwise — a
 build from source, or an install under a custom prefix — it generates a unit at
-`~/.local/share/systemd/user/openlogi-agent.service` pointing at the running
+`~/.local/share/systemd/user/omalogi-agent.service` pointing at the running
 binary.
 
-Either way `~/.config/systemd/user/openlogi-agent.service` stays yours: systemd
+Either way `~/.config/systemd/user/omalogi-agent.service` stays yours: systemd
 ranks it above both locations, so a unit you write there overrides whatever
-Omalogi does. Use `systemctl --user edit openlogi-agent.service` for a drop-in
+Omalogi does. Use `systemctl --user edit omalogi-agent.service` for a drop-in
 that survives package upgrades.
 
 Omalogi never overwrites or deletes a unit it did not generate, at either
@@ -175,10 +176,10 @@ yourself with the command above keeps working regardless of the GUI toggle.
 
 ```sh
 # List connected Logitech devices:
-openlogi list
+omalogi list
 
 # Launch the GUI:
-openlogi-desktop
+omalogi-desktop
 ```
 
 ## Known limitations

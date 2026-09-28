@@ -12,8 +12,10 @@ listed deltas:
 
 - `crates/openlogi-hidpp/`, `crates/openlogi-hidpp-derive/`
 - `crates/openlogi-device/`, `crates/openlogi-device-registry/`
-- `crates/openlogi-core/` — deltas: `src/brand.rs` (`APP_NAME` and the
-  repository/help/release URLs); the Omarchy action vocabulary and
+- `crates/openlogi-core/` — deltas: `src/brand.rs` (`APP_NAME`, the
+  repository/help/release URLs, and the `omalogi` executables and `APP_ID`,
+  ADR-0006); `src/paths.rs` (`APP_DIR = "omalogi"` and
+  `adopt_legacy_dirs`, ADR-0006); the Omarchy action vocabulary and
   `[commands]` table (ADR-0005): `src/binding/{action,effect,defaults}.rs`,
   `src/binding/action_ring/icon.rs` (label keys), `src/config.rs` (the
   `commands` field), `src/config/commands.rs`
@@ -22,8 +24,11 @@ listed deltas:
 - `crates/openlogi-ipc/`
 - `crates/openlogi-agent-core/` — delta: `src/runtime/pointer.rs` (no
   focus gate for `FormerWorkspace`)
-- `crates/openlogi-cli/` — delta: `src/cmd/reload.rs` (`openlogi reload`);
-  `crates/openlogi/`
+- `crates/openlogi-cli/` — deltas: `src/cmd/reload.rs` (`omalogi reload`);
+  `src/lib.rs` (clap name `omalogi` and the `adopt_legacy_dirs` call,
+  ADR-0006)
+- `crates/openlogi/` — delta: `Cargo.toml` (`[[bin]] name = "omalogi"`,
+  ADR-0006)
 - `crates/openlogi-ui/` — deltas: the product name in `locales/*.toml`, and
   the renamed Navigation keys (`actions.omarchy_menu`, …,
   `pointer.previous_next_workspace`); after a merge, re-run

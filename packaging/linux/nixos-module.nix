@@ -6,18 +6,18 @@
 }:
 
 let
-  cfg = config.programs.openlogi;
+  cfg = config.programs.omalogi;
 in
 {
-  options.programs.openlogi = {
-    enable = lib.mkEnableOption "OpenLogi, a local-first Logitech device manager";
+  options.programs.omalogi = {
+    enable = lib.mkEnableOption "Omalogi, a local-first Logitech device manager";
 
-    package = lib.mkPackageOption pkgs "openlogi" { };
+    package = lib.mkPackageOption pkgs "omalogi" { };
 
     launchAtLogin = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Whether to start the OpenLogi agent with graphical sessions.";
+      description = "Whether to start the Omalogi agent with graphical sessions.";
     };
   };
 
@@ -25,14 +25,14 @@ in
     environment.systemPackages = [ cfg.package ];
     services.udev.packages = [ cfg.package ];
 
-    systemd.user.services.openlogi-agent = {
-      description = "OpenLogi background agent";
+    systemd.user.services.omalogi-agent = {
+      description = "Omalogi background agent";
       wantedBy = lib.optionals cfg.launchAtLogin [ "graphical-session.target" ];
       after = [ "graphical-session.target" ];
       partOf = lib.optionals cfg.launchAtLogin [ "graphical-session.target" ];
 
       serviceConfig = {
-        ExecStart = lib.getExe' cfg.package "openlogi-agent";
+        ExecStart = lib.getExe' cfg.package "omalogi-agent";
         Restart = "on-failure";
         RestartSec = 5;
       };

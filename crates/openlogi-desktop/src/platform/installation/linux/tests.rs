@@ -15,7 +15,7 @@ async fn scripted(executable: &Path, steps: &[(&str, Option<&str>)]) -> Installa
                     "--show",
                     "--showformat=${db:Status-Status}",
                     "--",
-                    "openlogi:amd64"
+                    "omalogi:amd64"
                 ]
             );
         } else {
@@ -38,16 +38,12 @@ async fn scripted(executable: &Path, steps: &[(&str, Option<&str>)]) -> Installa
 #[tokio::test]
 async fn nix_uses_resolved_store_boundary_and_skips_package_commands() {
     assert_eq!(
-        scripted(
-            Path::new("/nix/store/abc-openlogi/bin/openlogi-desktop"),
-            &[]
-        )
-        .await,
+        scripted(Path::new("/nix/store/abc-omalogi/bin/omalogi-desktop"), &[]).await,
         InstallationSource::Nix
     );
     assert_eq!(
         scripted(
-            Path::new("/nix/store-backup/openlogi-desktop"),
+            Path::new("/nix/store-backup/omalogi-desktop"),
             &[("dpkg-query", None), ("rpm", None), ("pacman", None)]
         )
         .await,
@@ -57,8 +53,8 @@ async fn nix_uses_resolved_store_boundary_and_skips_package_commands() {
 
 #[tokio::test]
 async fn deb_requires_exact_file_ownership_and_installed_status() {
-    let executable = Path::new("/usr/bin/openlogi-desktop");
-    let owned = "openlogi:amd64: /usr/bin/openlogi-desktop";
+    let executable = Path::new("/usr/bin/omalogi-desktop");
+    let owned = "omalogi:amd64: /usr/bin/omalogi-desktop";
     assert_eq!(
         scripted(
             executable,
@@ -86,10 +82,10 @@ async fn deb_requires_exact_file_ownership_and_installed_status() {
         );
     }
     for output in [
-        "openlogi-extra: /usr/bin/openlogi-desktop",
-        "openlogi: /usr/bin/openlogi-desktop-old",
-        "openlogi:amd64, another: /usr/bin/openlogi-desktop",
-        "diversion by openlogi from: /usr/bin/openlogi-desktop",
+        "omalogi-extra: /usr/bin/omalogi-desktop",
+        "omalogi: /usr/bin/omalogi-desktop-old",
+        "omalogi:amd64, another: /usr/bin/omalogi-desktop",
+        "diversion by omalogi from: /usr/bin/omalogi-desktop",
     ] {
         assert_eq!(
             scripted(
@@ -107,12 +103,12 @@ async fn deb_requires_exact_file_ownership_and_installed_status() {
 }
 
 #[tokio::test]
-async fn rpm_and_arch_require_the_openlogi_package_not_a_similar_name() {
-    let executable = Path::new("/opt/custom path/openlogi-desktop");
+async fn rpm_and_arch_require_the_omalogi_package_not_a_similar_name() {
+    let executable = Path::new("/opt/custom path/omalogi-desktop");
     assert_eq!(
         scripted(
             executable,
-            &[("dpkg-query", None), ("rpm", Some("openlogi"))]
+            &[("dpkg-query", None), ("rpm", Some("omalogi"))]
         )
         .await,
         InstallationSource::LinuxPackage(LinuxPackage::Rpm)
@@ -123,7 +119,7 @@ async fn rpm_and_arch_require_the_openlogi_package_not_a_similar_name() {
             &[
                 ("dpkg-query", None),
                 ("rpm", Some("other")),
-                ("pacman", Some("openlogi"))
+                ("pacman", Some("omalogi"))
             ]
         )
         .await,
@@ -134,8 +130,8 @@ async fn rpm_and_arch_require_the_openlogi_package_not_a_similar_name() {
             executable,
             &[
                 ("dpkg-query", None),
-                ("rpm", Some("openlogi-extra")),
-                ("pacman", Some("other\nopenlogi"))
+                ("rpm", Some("omalogi-extra")),
+                ("pacman", Some("other\nomalogi"))
             ]
         )
         .await,
@@ -153,10 +149,10 @@ async fn missing_query_tool_is_inconclusive() {
 #[tokio::test]
 async fn query_rejects_failure_and_times_out_instead_of_trusting_stdout() {
     let mut success = Command::new("/bin/sh");
-    success.args(["-c", "printf 'openlogi\\n'"]);
-    assert_eq!(query(success).await.as_deref(), Some("openlogi"));
+    success.args(["-c", "printf 'omalogi\\n'"]);
+    assert_eq!(query(success).await.as_deref(), Some("omalogi"));
     let mut failure = Command::new("/bin/sh");
-    failure.args(["-c", "printf openlogi; exit 1"]);
+    failure.args(["-c", "printf omalogi; exit 1"]);
     assert_eq!(query(failure).await, None);
     let temp = tempfile::tempdir().unwrap();
     let pidfile = temp.path().join("pid");

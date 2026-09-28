@@ -11,6 +11,11 @@ keywords = ["logitech", "hidpp", "hid", "mouse", "cli"]
 categories = ["command-line-utilities", "hardware-support"]
 readme = "../../README.md"
 
+# Omalogi-owned delta: the command users type (ADR-0006).
+[[bin]]
+name = "omalogi"
+path = "src/main.rs"
+
 [dependencies]
 openlogi-cli = { path = "../openlogi-cli", version = "0.8.9" }
 anyhow = { workspace = true }

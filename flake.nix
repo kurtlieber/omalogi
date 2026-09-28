@@ -44,7 +44,7 @@
         let
           lib = nixpkgs.lib;
           pkgs = nixpkgs.legacyPackages.${system};
-          package = self.packages.${system}.openlogi;
+          package = self.packages.${system}.omalogi;
           evaluate =
             launchAtLogin:
             (lib.nixosSystem {
@@ -52,7 +52,7 @@
               modules = [
                 self.nixosModules.default
                 {
-                  programs.openlogi = {
+                  programs.omalogi = {
                     enable = true;
                     inherit launchAtLogin;
                   };
@@ -65,15 +65,15 @@
         in
         assert lib.elem package enabled.environment.systemPackages;
         assert lib.elem package enabled.services.udev.packages;
-        assert enabled.systemd.user.services.openlogi-agent.wantedBy == [ "graphical-session.target" ];
-        assert manual.systemd.user.services.openlogi-agent.wantedBy == [ ];
-        assert enabled.systemd.user.services.openlogi-agent.after == [ "graphical-session.target" ];
-        assert enabled.systemd.user.services.openlogi-agent.partOf == [ "graphical-session.target" ];
-        assert manual.systemd.user.services.openlogi-agent.partOf == [ ];
+        assert enabled.systemd.user.services.omalogi-agent.wantedBy == [ "graphical-session.target" ];
+        assert manual.systemd.user.services.omalogi-agent.wantedBy == [ ];
+        assert enabled.systemd.user.services.omalogi-agent.after == [ "graphical-session.target" ];
+        assert enabled.systemd.user.services.omalogi-agent.partOf == [ "graphical-session.target" ];
+        assert manual.systemd.user.services.omalogi-agent.partOf == [ ];
         assert
-          enabled.systemd.user.services.openlogi-agent.serviceConfig.ExecStart
-          == "${package}/bin/openlogi-agent";
-        pkgs.runCommand "openlogi-nixos-module-check" { } ''
+          enabled.systemd.user.services.omalogi-agent.serviceConfig.ExecStart
+          == "${package}/bin/omalogi-agent";
+        pkgs.runCommand "omalogi-nixos-module-check" { } ''
           touch "$out"
         '';
     in
@@ -81,23 +81,23 @@
       packages = forAllSystems (
         system:
         let
-          openlogi = packageFor system;
+          omalogi = packageFor system;
         in
         {
-          inherit openlogi;
-          default = openlogi;
+          inherit omalogi;
+          default = omalogi;
         }
       );
 
       checks = forAllSystems (system: {
-        package = self.packages.${system}.openlogi;
+        package = self.packages.${system}.omalogi;
         nixos-module = moduleCheckFor system;
       });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 
       nixosModules = {
-        openlogi =
+        omalogi =
           {
             lib,
             pkgs,
@@ -105,9 +105,9 @@
           }:
           {
             imports = [ ./packaging/linux/nixos-module.nix ];
-            programs.openlogi.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.openlogi;
+            programs.omalogi.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.omalogi;
           };
-        default = self.nixosModules.openlogi;
+        default = self.nixosModules.omalogi;
       };
     };
 }

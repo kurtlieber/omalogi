@@ -7,6 +7,9 @@ use tokio::process::Command;
 
 use super::{InstallationSource, LinuxPackage};
 
+/// The package name `packaging/linux/nfpm.yaml` builds (ADR-0006).
+const PACKAGE: &str = "omalogi";
+
 #[cfg(target_os = "linux")]
 pub(super) fn detect(executable: &Path) -> InstallationSource {
     let Ok(runtime) = openlogi_core::worker::runtime() else {
@@ -39,13 +42,13 @@ async fn detect_with(
     let mut rpm = Command::new("rpm");
     rpm.args(["--query", "--file", "--queryformat", "%{NAME}", "--"])
         .arg(executable);
-    if query(rpm).await.as_deref() == Some("openlogi") {
+    if query(rpm).await.as_deref() == Some(PACKAGE) {
         return InstallationSource::LinuxPackage(LinuxPackage::Rpm);
     }
 
     let mut pacman = Command::new("pacman");
     pacman.args(["-Qqo", "--"]).arg(executable);
-    if query(pacman).await.as_deref() == Some("openlogi") {
+    if query(pacman).await.as_deref() == Some(PACKAGE) {
         return InstallationSource::LinuxPackage(LinuxPackage::Arch);
     }
     InstallationSource::Unknown
@@ -86,7 +89,7 @@ fn deb_owner<'a>(output: &'a str, executable: &Path) -> Option<&'a str> {
         let (owner, path) = line.rsplit_once(": ")?;
         // dpkg accepts glob patterns; only an exact path match proves ownership.
         // Multiarch package names are allowed, but lists of owners are not.
-        (owner.split(':').next() == Some("openlogi")
+        (owner.split(':').next() == Some(PACKAGE)
             && !owner.contains([',', ' '])
             && Path::new(path) == executable)
             .then_some(owner)

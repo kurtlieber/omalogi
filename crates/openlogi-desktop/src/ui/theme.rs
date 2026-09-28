@@ -246,8 +246,8 @@ const OPENLOGI_THEME_JSON: &str = include_str!("../../themes/openlogi.json");
 include!(concat!(env!("OUT_DIR"), "/builtin_themes.rs"));
 
 /// The default brand theme names — slots [`apply_from_settings`] falls back to.
-pub const OPENLOGI_LIGHT: &str = "OpenLogi Light";
-pub const OPENLOGI_DARK: &str = "OpenLogi Dark";
+pub const OPENLOGI_LIGHT: &str = "Omalogi Light";
+pub const OPENLOGI_DARK: &str = "Omalogi Dark";
 
 /// Register every bundled theme into the [`ThemeRegistry`]. Call once at
 /// startup, after `gpui_component::init` (which seeds the registry global). Our

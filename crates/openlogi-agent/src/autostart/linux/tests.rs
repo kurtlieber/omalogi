@@ -4,8 +4,8 @@ use super::*;
 
 #[test]
 fn rendered_unit_targets_agent_and_restarts_on_failure() {
-    let body = render_unit("/usr/bin/openlogi-agent");
-    assert!(body.contains("ExecStart=/usr/bin/openlogi-agent"));
+    let body = render_unit("/usr/bin/omalogi-agent");
+    assert!(body.contains("ExecStart=/usr/bin/omalogi-agent"));
     assert!(body.contains("Restart=on-failure"));
     assert!(body.contains("WantedBy=graphical-session.target"));
     assert!(!body.contains("--minimized"));
@@ -13,7 +13,7 @@ fn rendered_unit_targets_agent_and_restarts_on_failure() {
 
 #[test]
 fn rendered_unit_is_valid_ini_with_all_three_sections() {
-    let body = render_unit("/usr/bin/openlogi-agent");
+    let body = render_unit("/usr/bin/omalogi-agent");
     assert!(body.contains("[Unit]"));
     assert!(body.contains("[Service]"));
     assert!(body.contains("[Install]"));
@@ -22,34 +22,34 @@ fn rendered_unit_is_valid_ini_with_all_three_sections() {
 #[test]
 fn escape_systemd_exec_doubles_percent() {
     assert_eq!(
-        escape_systemd_exec("/home/user%20/bin/openlogi-agent"),
-        "/home/user%%20/bin/openlogi-agent"
+        escape_systemd_exec("/home/user%20/bin/omalogi-agent"),
+        "/home/user%%20/bin/omalogi-agent"
     );
 }
 
 #[test]
 fn escape_systemd_exec_quotes_path_with_spaces() {
-    let result = escape_systemd_exec("/home/my user/bin/openlogi-agent");
-    assert_eq!(result, "\"/home/my user/bin/openlogi-agent\"");
+    let result = escape_systemd_exec("/home/my user/bin/omalogi-agent");
+    assert_eq!(result, "\"/home/my user/bin/omalogi-agent\"");
 }
 
 #[test]
 fn escape_systemd_exec_quotes_and_doubles_percent_with_spaces() {
-    let result = escape_systemd_exec("/home/my%20 user/openlogi-agent");
-    assert_eq!(result, "\"/home/my%%20 user/openlogi-agent\"");
+    let result = escape_systemd_exec("/home/my%20 user/omalogi-agent");
+    assert_eq!(result, "\"/home/my%%20 user/omalogi-agent\"");
 }
 
 #[test]
 fn escape_systemd_exec_doubles_dollar() {
     assert_eq!(
-        escape_systemd_exec("/opt/release$1/bin/openlogi-agent"),
-        "/opt/release$$1/bin/openlogi-agent"
+        escape_systemd_exec("/opt/release$1/bin/omalogi-agent"),
+        "/opt/release$$1/bin/omalogi-agent"
     );
 }
 
 #[test]
 fn escape_systemd_exec_plain_path_unchanged() {
-    let path = "/usr/local/bin/openlogi-agent";
+    let path = "/usr/local/bin/omalogi-agent";
     assert_eq!(escape_systemd_exec(path), path);
 }
 
@@ -57,7 +57,7 @@ fn escape_systemd_exec_plain_path_unchanged() {
 fn systemctl_arguments_render_as_a_command_suffix() {
     assert_eq!(
         SystemctlArgsDisplay(&["enable", UNIT_NAME]).to_string(),
-        "enable openlogi-agent.service"
+        "enable omalogi-agent.service"
     );
 }
 
@@ -92,9 +92,9 @@ fn generated_unit_lives_below_the_user_config_tier() {
 #[test]
 fn a_rendered_unit_is_recognised_as_ours_for_any_executable() {
     for exe in [
-        "/usr/bin/openlogi-agent",
-        "/usr/local/bin/openlogi-agent",
-        "/home/dev/OpenLogi/target/debug/openlogi-agent",
+        "/usr/bin/omalogi-agent",
+        "/usr/local/bin/omalogi-agent",
+        "/home/dev/omalogi/target/debug/omalogi-agent",
     ] {
         assert!(
             is_generated_unit(&render_unit(exe)),
@@ -109,9 +109,9 @@ fn a_rendered_unit_is_recognised_as_ours_for_any_executable() {
 #[test]
 fn a_rendered_unit_is_recognised_as_ours_when_the_path_needs_escaping() {
     for exe in [
-        "/opt/100%/bin/openlogi-agent",
-        "/opt/release$1/bin/openlogi-agent",
-        "/home/a b/openlogi-agent",
+        "/opt/100%/bin/omalogi-agent",
+        "/opt/release$1/bin/omalogi-agent",
+        "/home/a b/omalogi-agent",
     ] {
         assert!(
             is_generated_unit(&render_unit(exe)),
@@ -120,9 +120,25 @@ fn a_rendered_unit_is_recognised_as_ours_when_the_path_needs_escaping() {
     }
 }
 
+/// A unit an OpenLogi agent (or a pre-ADR-0006 Omalogi agent) generated is
+/// recognised for retirement, and is not mistaken for the current template.
+#[test]
+fn an_openlogi_generated_unit_is_recognised_for_retirement() {
+    let exec = escape_systemd_exec("/home/a b/openlogi-agent");
+    let openlogi = render_template(OPENLOGI_DESCRIPTION, &exec);
+    assert!(is_openlogi_generated_unit(&openlogi));
+    assert!(!is_generated_unit(&openlogi));
+
+    let ours = render_unit("/usr/bin/omalogi-agent");
+    assert!(!is_openlogi_generated_unit(&ours));
+
+    let edited = openlogi.replace("RestartSec=5", "RestartSec=9");
+    assert!(!is_openlogi_generated_unit(&edited));
+}
+
 #[test]
 fn a_hand_edited_unit_is_not_ours() {
-    let base = render_unit("/usr/bin/openlogi-agent");
+    let base = render_unit("/usr/bin/omalogi-agent");
 
     let with_extra = base.replace(
         "Restart=on-failure",
@@ -153,7 +169,7 @@ fn a_hand_edited_unit_is_not_ours() {
 /// file is the user's however much of it looks familiar.
 #[test]
 fn a_unit_with_two_exec_starts_is_not_ours() {
-    let doubled = render_unit("/usr/bin/openlogi-agent").replace(
+    let doubled = render_unit("/usr/bin/omalogi-agent").replace(
         "Restart=on-failure",
         "ExecStart=/bin/true\nRestart=on-failure",
     );
@@ -163,21 +179,21 @@ fn a_unit_with_two_exec_starts_is_not_ours() {
 
 #[test]
 fn exec_start_value_is_returned_still_escaped() {
-    let unit = render_unit("/opt/100%/bin/openlogi-agent");
+    let unit = render_unit("/opt/100%/bin/omalogi-agent");
     assert_eq!(
         exec_start_value(&unit),
-        Some("/opt/100%%/bin/openlogi-agent")
+        Some("/opt/100%%/bin/omalogi-agent")
     );
 }
 
 #[test]
 fn unescaping_inverts_the_escaping() {
     for exe in [
-        "/usr/bin/openlogi-agent",
-        "/opt/100%/bin/openlogi-agent",
-        "/opt/release$1/bin/openlogi-agent",
-        "/home/a b/openlogi-agent",
-        "/home/quote\"odd/openlogi-agent",
+        "/usr/bin/omalogi-agent",
+        "/opt/100%/bin/omalogi-agent",
+        "/opt/release$1/bin/omalogi-agent",
+        "/home/a b/omalogi-agent",
+        "/home/quote\"odd/omalogi-agent",
     ] {
         assert_eq!(unescape_systemd_exec(&escape_systemd_exec(exe)), exe);
     }
@@ -187,20 +203,20 @@ fn unescaping_inverts_the_escaping() {
 #[test]
 fn unescaping_drops_arguments() {
     assert_eq!(
-        unescape_systemd_exec("/usr/bin/openlogi-agent --verbose"),
-        "/usr/bin/openlogi-agent"
+        unescape_systemd_exec("/usr/bin/omalogi-agent --verbose"),
+        "/usr/bin/omalogi-agent"
     );
     assert_eq!(
-        unescape_systemd_exec("\"/home/a b/openlogi-agent\" --verbose"),
-        "/home/a b/openlogi-agent"
+        unescape_systemd_exec("\"/home/a b/omalogi-agent\" --verbose"),
+        "/home/a b/omalogi-agent"
     );
 }
 
 #[test]
 fn same_executable_compares_missing_paths_literally() {
     assert!(same_executable(
-        Path::new("/nonexistent/openlogi-agent"),
-        Path::new("/nonexistent/openlogi-agent")
+        Path::new("/nonexistent/omalogi-agent"),
+        Path::new("/nonexistent/omalogi-agent")
     ));
     assert!(!same_executable(
         Path::new("/nonexistent/a"),
@@ -215,7 +231,7 @@ fn same_executable_resolves_symlinks() {
     let dir = std::env::temp_dir().join(format!("openlogi-unit-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let target = dir.join("openlogi-agent");
+    let target = dir.join("omalogi-agent");
     std::fs::write(&target, b"#!/bin/sh\n").expect("write target");
     let link = dir.join("linked-agent");
     std::os::unix::fs::symlink(&target, &link).expect("symlink");
@@ -233,7 +249,7 @@ fn packaged_probe_ignores_a_unit_for_another_binary() {
     assert_eq!(parsed.as_deref(), Some("/usr/bin/some-other-agent"));
     assert!(!same_executable(
         Path::new("/usr/bin/some-other-agent"),
-        Path::new("/usr/bin/openlogi-agent")
+        Path::new("/usr/bin/omalogi-agent")
     ));
 }
 
@@ -242,7 +258,7 @@ fn packaged_probe_ignores_a_unit_for_another_binary() {
 /// migration, the data-tier delete, and the decision to leave a file alone.
 #[test]
 fn a_unit_this_app_did_not_render_is_not_ours() {
-    let ours = render_unit("/usr/bin/openlogi-agent");
+    let ours = render_unit("/usr/bin/omalogi-agent");
     assert!(
         is_generated_unit(&ours),
         "our own rendering is not the user's"

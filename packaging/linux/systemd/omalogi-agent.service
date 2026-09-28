@@ -1,4 +1,4 @@
-# OpenLogi background agent — packaged user unit.
+# Omalogi background agent — packaged user unit.
 #
 # Packages use /usr/bin directly. install.sh rewrites ExecStart when installing
 # under a custom PREFIX (default: /usr/local).
@@ -8,15 +8,15 @@
 # for a build from source.
 #
 # Enable for the current user:
-#   systemctl --user enable --now openlogi-agent.service
+#   systemctl --user enable --now omalogi-agent.service
 
 [Unit]
-Description=OpenLogi background agent (Logitech HID++ device control)
+Description=Omalogi background agent (Logitech HID++ device control)
 After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/openlogi-agent
+ExecStart=/usr/bin/omalogi-agent
 Restart=on-failure
 RestartSec=5
 

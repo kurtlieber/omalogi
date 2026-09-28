@@ -44,6 +44,7 @@ use crate::state::ConfigPersistence;
 use crate::ui::theme;
 
 fn main() -> Result<()> {
+    openlogi_core::paths::adopt_legacy_dirs();
     init_tracing();
 
     #[cfg(debug_assertions)]
@@ -58,7 +59,7 @@ fn main() -> Result<()> {
             Err(openlogi_core::single_instance::InstanceError::AlreadyRunning { path }) => {
                 info!(
                     path = %path.display(),
-                    "another OpenLogi instance is already running — exiting"
+                    "another Omalogi instance is already running — exiting"
                 );
                 return Ok(());
             }

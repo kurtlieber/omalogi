@@ -53,8 +53,8 @@ the NixOS module. It is separate from the devenv shell:
 
 ```sh
 nix flake check --all-systems --no-build  # evaluate every output
-nix build .#openlogi                      # build + test this host's package
-nix run .#openlogi -- list                # run the packaged CLI
+nix build .#omalogi                       # build + test this host's package
+nix run .#omalogi -- list                 # run the packaged CLI
 ```
 
 The package expression and NixOS module live beside the other Linux packaging
@@ -71,7 +71,7 @@ cargo run -p openlogi-desktop
 ```
 
 Each binary holds a single-instance lock, so stop a packaged agent first
-(`systemctl --user stop openlogi-agent`) and quit any running GUI.
+(`systemctl --user stop omalogi-agent`) and quit any running GUI.
 
 ## Developing the GUI without hardware
 
@@ -127,12 +127,12 @@ crates/
   openlogi-assets/  device-render registry schema + cached HTTP fetch from OpenLogi asset mirrors
   openlogi-cli/     CLI implementation: command tree + `run()`, called by the `openlogi` binary
   openlogi-agent-core/  shared orchestration + the agent/GUI IPC contract
-  openlogi-agent/   the `openlogi-agent` binary — background agent owning device I/O and the hook
+  openlogi-agent/   the `omalogi-agent` binary — background agent owning device I/O and the hook
   openlogi-hook/    OS mouse hook: evdev grab + uinput re-injection
   openlogi-ui/      presentation shared by the two GPUI processes: ring geometry/icons,
                     the GPUI asset source, locale negotiation — gpui, no gpui-component
-  openlogi-desktop/     the `openlogi-desktop` binary — GPUI + gpui-component IPC client
-  openlogi-overlay/ the `openlogi-overlay` binary — the cursor-centred Actions Ring
+  openlogi-desktop/     the `omalogi-desktop` binary — GPUI + gpui-component IPC client
+  openlogi-overlay/ the `omalogi-overlay` binary — the cursor-centred Actions Ring
 ```
 
 ## Agent guidance
@@ -237,7 +237,7 @@ This is an ownership snapshot, not download provenance or an update policy;
 the updater does not yet change behavior based on it.
 
 - **Linux:** recognizes a resolved `/nix/store/` executable, or queries dpkg,
-  rpm, and pacman for ownership of the exact executable by `openlogi`.
+  rpm, and pacman for ownership of the exact executable by `omalogi`.
   Package queries are read-only, with a two-second timeout per command.
 - **Unknown:** bare source/manual installs, or otherwise inconclusive ownership.
 

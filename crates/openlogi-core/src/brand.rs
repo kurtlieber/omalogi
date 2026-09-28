@@ -25,9 +25,13 @@ pub const RELEASES_URL: &str = "https://github.com/kurtlieber/omalogi/releases/l
 /// (`org.openlogi.agent`, `org.openlogi.openlogi-dev`), and the value the Linux
 /// `.desktop` file pins as `StartupWMClass`. Defined once here so the window the
 /// compositor sees, the launcher that groups it, and the frontmost backend that
-/// self-identifies OpenLogi can never disagree. The `.desktop` file carries its
+/// self-identifies Omalogi can never disagree. The `.desktop` file carries its
 /// own literal copy (it can't reference Rust) — keep the two in sync.
-pub const APP_ID: &str = "org.openlogi.openlogi";
+///
+/// (Omalogi-owned delta: `omalogi`, the name Hyprland window rules match and
+/// the desktop file's basename, so launchers group the window without a
+/// `StartupWMClass` lookup. ADR-0006.)
+pub const APP_ID: &str = "omalogi";
 
 /// The always-on agent's bundle identifier — the process that owns the hook and
 /// holds the Accessibility grant, shipped as a nested login item.
@@ -73,12 +77,12 @@ pub const APP_NAME: &str = "Omalogi";
 
 /// The GUI's executable, as cargo builds it and as the macOS bundle and the
 /// Linux packages ship it. The helpers' executables are [`Helper::executable`].
-pub const GUI_EXECUTABLE: &str = "openlogi-desktop";
+pub const GUI_EXECUTABLE: &str = "omalogi-desktop";
 
 /// The CLI's executable — the command users type, so it never changes. The
 /// Windows installer ships the GUI under the same name in another case
 /// (`OpenLogi.exe`), which the case-insensitive match below covers.
-pub const CLI_EXECUTABLE: &str = "openlogi";
+pub const CLI_EXECUTABLE: &str = "omalogi";
 
 /// `name`'s dev-channel counterpart, the way [`dev_id`] is for identifiers:
 /// what System Settings shows for a local build's bundle, and the directory a
@@ -136,8 +140,8 @@ impl Helper {
     #[must_use]
     pub const fn executable(self) -> &'static str {
         match self {
-            Self::Agent => "openlogi-agent",
-            Self::Overlay => "openlogi-overlay",
+            Self::Agent => "omalogi-agent",
+            Self::Overlay => "omalogi-overlay",
         }
     }
 
@@ -399,7 +403,7 @@ mod tests {
         // still found, after the current layouts.
         assert_eq!(
             Helper::Agent.executable_candidates()[2],
-            "Contents/Library/LoginItems/OpenLogiAgent.app/Contents/MacOS/openlogi-agent"
+            "Contents/Library/LoginItems/OpenLogiAgent.app/Contents/MacOS/omalogi-agent"
         );
     }
 
@@ -459,13 +463,13 @@ mod tests {
         // Windows reports a lower-cased executable path; a dev build runs the
         // cargo artifact out of `target/`.
         assert!(is_openlogi_foreground_id(
-            r"c:\program files\openlogi\openlogi.exe"
+            r"c:\program files\omalogi\omalogi.exe"
         ));
         assert!(is_openlogi_foreground_id(
-            r"c:\program files\openlogi\openlogi-agent.exe"
+            r"c:\program files\omalogi\omalogi-agent.exe"
         ));
         assert!(is_openlogi_foreground_id(
-            r"c:\src\openlogi\target\debug\openlogi-desktop.exe"
+            r"c:\src\omalogi\target\debug\omalogi-desktop.exe"
         ));
     }
 

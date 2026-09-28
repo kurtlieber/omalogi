@@ -197,10 +197,10 @@ HID manager per operation.
 
 Own user interaction and file I/O:
 
-- `openlogi fixture contribute`
-- `openlogi fixture record profile`
-- `openlogi fixture record case`
-- `openlogi fixture verify <fixture-directory>`
+- `omalogi fixture contribute`
+- `omalogi fixture record profile`
+- `omalogi fixture record case`
+- `omalogi fixture verify <fixture-directory>`
 - Strict target selection, safety warnings, sanitization report, case
   self-replay, atomic publication, and strict corpus loading.
 
@@ -395,7 +395,7 @@ Split cases because a full inventory probe can contain hundreds of exchanges
 and changes more often than a focused DPI read. A regression should identify
 the operation that no longer matches.
 
-Run `openlogi fixture verify <fixture-directory>` before review. The loader
+Run `omalogi fixture verify <fixture-directory>` before review. The loader
 accepts only a real, non-symlink directory whose name equals the manifest ID,
 requires exactly `manifest.json`, `profile.json`, and the complete declared
 `cases/*.json` set, and rejects unknown files, unsafe case names, symlinks, and
@@ -418,7 +418,7 @@ and already holds stable channels. This mode records no raw reports and needs no
 new IPC method.
 
 **Raw case capture** is a controlled direct diagnostic operation. It uses the
-same ownership model as the existing `openlogi diag` commands: discover devices,
+same ownership model as the existing `omalogi diag` commands: discover devices,
 select one target, open it, run one named read operation, and exit. Discovery
 uses production enumeration, which may write receiver notification flags
 (register `0x00`) and request arrival reports (register `0x02`) on connected
@@ -437,11 +437,11 @@ release the lock. It does not exclude Options+ or other direct diagnostic tools.
 
 ### Contribution wizard
 
-`openlogi fixture contribute` combines the safe capture modes without changing
+`omalogi fixture contribute` combines the safe capture modes without changing
 their ownership boundaries:
 
 ```sh
-openlogi fixture contribute \
+omalogi fixture contribute \
   --id mx-master-3s-001 \
   --name "MX Master 3S" \
   --device "MX Master 3S" \

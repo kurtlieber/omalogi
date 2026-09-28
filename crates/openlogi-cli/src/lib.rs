@@ -9,12 +9,12 @@ use clap::Parser;
 mod agent;
 mod cmd;
 
-/// OpenLogi: a local-first companion for Logitech HID++ peripherals.
+/// Omalogi: a local-first companion for Logitech HID++ peripherals.
 #[derive(Debug, Parser)]
 #[command(
-    name = "openlogi",
+    name = "omalogi",
     version,
-    about = "OpenLogi: a local-first companion for Logitech HID++ peripherals.",
+    about = "Omalogi: a local-first companion for Logitech HID++ peripherals.",
     long_about = None,
 )]
 struct Cli {
@@ -27,6 +27,8 @@ struct Cli {
 /// Returns the exit status the process should terminate with — `list` uses a
 /// distinct one to report that no hardware is connected.
 pub async fn run() -> Result<ExitCode> {
+    // Omalogi-owned delta (ADR-0006).
+    openlogi_core::paths::adopt_legacy_dirs();
     openlogi_core::logging::init_stderr();
 
     let cli = Cli::parse();

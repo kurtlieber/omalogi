@@ -1,7 +1,7 @@
 # OpenLogi fixture corpus
 
 This directory is the repository-level home for future reviewed, sanitized
-captures produced by `openlogi fixture record`. One physical specimen owns one
+captures produced by `omalogi fixture record`. One physical specimen owns one
 directory:
 
 ```text
@@ -14,7 +14,7 @@ fixtures/devices/<synthetic-specimen-id>/
 
 Only privacy-verified fixture assets belong here. Never commit native recorder
 output, host paths, original hardware identities, passkeys, or unsanitized
-temporary files. Run `openlogi fixture verify <fixture-directory>` before
+temporary files. Run `omalogi fixture verify <fixture-directory>` before
 review. `cargo test -p openlogi-cli fixture::verify` also discovers and strictly
 verifies every fixture directory in this corpus and the packaged synthetic
 corpus, including newly added specimens.
@@ -25,7 +25,7 @@ Use the contribution wizard instead of writing `manifest.json`, synthetic
 identities, case relationships, or occurrence counts by hand:
 
 ```sh
-openlogi fixture contribute \
+omalogi fixture contribute \
   --id mx-master-3s-001 \
   --name "MX Master 3S" \
   --device "MX Master 3S" \

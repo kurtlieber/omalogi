@@ -14,7 +14,7 @@ Find the first failing layer before proposing a permission change or code fix.
    Distinguish an absent receiver from a paired device that is asleep or offline.
 2. Read the existing report and logs before asking for new captures. Record the
    failing action, expected result, and whether the failure repeats.
-3. Compare `openlogi list` stdout **and stderr** with the GUI, using the same profile.
+3. Compare `omalogi list` stdout **and stderr** with the GUI, using the same profile.
    Read [list provenance](../../../crates/openlogi-cli/src/cmd/list.rs) if ambiguous:
    - `inventory read from the running agent` uses the GUI's HID inventory source.
    - Direct fallback uses the CLI's own permission identity and HID stack.
@@ -49,7 +49,7 @@ receiver discovery can enable notifications and request arrival reports.
 
 | Diagnostic | Boundary |
 | --- | --- |
-| `openlogi diag features` | Reads feature/firmware tables for all online devices; has no `--device` flag |
+| `omalogi diag features` | Reads feature/firmware tables for all online devices; has no `--device` flag |
 | `diag controls`, `diag battery` | Read the selected device; use `--device` and inspect the printed route |
 | `diag wheel` without `--resolution` | Reads wheel mode; adding `--resolution` writes hardware |
 | `diag dpi` | Writes a test DPI and attempts restoration; failures can prevent restoration |

@@ -12,7 +12,7 @@ Produce a sanitized, verifiable fixture without treating replay as proof of hard
 1. Read the [fixture architecture and recording workflow](../../../docs/MOCK_DEVICE_TESTING.md).
    Check current CLI support before using proposed features from that design doc.
    Use the repository CLI with `cargo run -p openlogi -- <arguments>` if the installed
-   `openlogi` lacks the fixture commands.
+   `omalogi` lacks the fixture commands.
 2. Choose a synthetic specimen ID and name; do not embed serials or contributor
    identity. Use a new output directory whose basename equals `--id`.
 3. Identify one physical target and transport. `--device` accepts a case-insensitive
@@ -27,7 +27,7 @@ Produce a sanitized, verifiable fixture without treating replay as proof of hard
 With a compatible real agent running, use this command with the selected values:
 
 ```sh
-openlogi fixture contribute \
+omalogi fixture contribute \
   --id mx-master-3s-001 \
   --name "MX Master 3S" \
   --device "MX Master 3S" \
@@ -67,7 +67,7 @@ state is removed before final on-disk verification.
 ## Verify and review before sharing
 
 ```sh
-openlogi fixture verify fixtures/devices/mx-master-3s-001
+omalogi fixture verify fixtures/devices/mx-master-3s-001
 cargo test -p openlogi-cli fixture::verify
 ```
 

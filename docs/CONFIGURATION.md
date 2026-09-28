@@ -1,7 +1,7 @@
 # Configuration
 
-Omalogi stores settings as plain TOML in `$XDG_CONFIG_HOME/openlogi/config.toml`
-(normally `~/.config/openlogi/config.toml`). The GUI and agent read the same
+Omalogi stores settings as plain TOML in `$XDG_CONFIG_HOME/omalogi/config.toml`
+(normally `~/.config/omalogi/config.toml`). The GUI and agent read the same
 file. An OpenLogi config loads in Omalogi, but not the reverse: Omalogi renames
 the Navigation actions and adds a `[commands]` table (see
 [ADR-0005](adr/0005-omarchy-action-vocabulary.md)).
@@ -25,7 +25,7 @@ If the file changes in an editor while the GUI is open, the next GUI save is
 refused rather than overwriting the external edit. Relaunch to load that
 revision. Opening the GUI also tells the resident agent to reload the current
 file, so hand edits and runtime behavior converge immediately. Without the GUI,
-run `openlogi reload`: it applies the file to the running agent, or prints the
+run `omalogi reload`: it applies the file to the running agent, or prints the
 parse error and leaves the agent on its current config.
 
 Schema versions newer than the running build are rejected before their fields
@@ -175,11 +175,11 @@ VolumeUp = "pamixer -i 2"
 - **Values** run through `/bin/sh -c` as your user, with stdin, stdout, and
   stderr on `/dev/null`, so `~`, `$VARS`, pipes, and `&` work.
 - **An override is final.** If the command cannot start or exits non-zero,
-  the agent logs a warning (`journalctl --user -u openlogi-agent`) and shows
+  the agent logs a warning (`journalctl --user -u omalogi-agent`) and shows
   one desktop notification per action every 10 seconds. The built-in action
   does not run as a fallback.
 - **Applying edits:** the GUI reloads the agent when it opens; otherwise run
-  `openlogi reload`.
+  `omalogi reload`.
 
 To give a single button a command without changing the action everywhere,
 bind it to `RunShellCommand` instead — in the GUI, pick **Run Shell Command…**

@@ -235,7 +235,7 @@ pub(crate) fn ring_window_options() -> WindowOptions {
         is_resizable: false,
         is_minimizable: false,
         window_background: WindowBackgroundAppearance::Transparent,
-        app_id: Some("openlogi-action-ring".to_string()),
+        app_id: Some("omalogi-action-ring".to_string()),
         ..WindowOptions::default()
     }
 }
