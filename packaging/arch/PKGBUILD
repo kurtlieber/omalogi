@@ -32,9 +32,7 @@ options=('!debug' '!lto')
 # fourth component for its own revision on that upstream base.
 _tag="v$pkgver"
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$_tag.tar.gz")
-# Replaced by `updpkgsums` once the tag is pushed; omarchy-pkgs requires a
-# pinned checksum.
-sha256sums=('SKIP')
+sha256sums=('11f15ed91dcb98a2bcb8b61d4a431d1128dbb26c80bc5bb6ef1423115285ed17')
 
 # Local validation: OMALOGI_SRC=/path/to/checkout makepkg builds that tree
 # instead of the release tarball.

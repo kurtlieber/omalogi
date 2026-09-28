@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Omalogi fork of OpenLogi, based on upstream **v0.8.9**. Entries from 0.8.9
-down are upstream OpenLogi's history.
+## [0.8.9.1] - 2026-09-28
+
+First Omalogi release: a fork of OpenLogi, based on upstream **v0.8.9**.
+Entries from 0.8.9 down are upstream OpenLogi's history.
 
 ### Added
 - Hyprland/Omarchy dispatch for window-manager actions: workspace switching,
@@ -19,7 +21,7 @@ down are upstream OpenLogi's history.
   desktop notification (ADR-0005).
 - **Run Shell Command…** in the mouse button, gesture, and Actions Ring
   pickers.
-- `openlogi reload` applies a hand-edited `config.toml` to the running agent.
+- `omalogi reload` applies a hand-edited `config.toml` to the running agent.
 
 ### Changed
 - Linux-only: macOS and Windows backends, bundling, signing, and release
@@ -54,6 +56,8 @@ down are upstream OpenLogi's history.
 - Screenshot opened the interactive picker; it now captures the full screen.
 - A long-running helper (screenshot preview, lock teardown) no longer stalls
   later button actions.
+- The M720 Triathlon's gesture button (control 0x00D0) is captured for
+  gestures and remapping; it was left undiverted and did nothing.
 
 ## [0.8.9] - 2026-09-27
 

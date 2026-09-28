@@ -3,8 +3,8 @@
 <p align="center"><strong>Logitech mouse and keyboard control for <a href="https://omarchy.org/">Omarchy</a> — where the gesture button, workspace keys, lock, and screenshot run real Hyprland commands.</strong></p>
 
 > [!WARNING]
-> **Omalogi is early and personal.** It is a single-maintainer fork, built from
-> source, with no published packages yet. Expect config and behaviour to change.
+> **Omalogi is early and personal.** It is a single-maintainer fork. Expect
+> config and behaviour to change between releases.
 
 Omalogi is a Linux-only fork of [**OpenLogi**](https://github.com/AprilNEA/OpenLogi)
 by [@AprilNEA](https://github.com/AprilNEA). OpenLogi does the hard part — the
@@ -87,14 +87,22 @@ Details: [Configuration → Command overrides](docs/CONFIGURATION.md#command-ove
 > Omalogi replaces **Solaar**: only one app can own a receiver at a time, so
 > the package conflicts with it and pacman offers to remove it.
 
-Build from source with a stable Rust toolchain:
+Install the package from the
+[latest release](https://github.com/kurtlieber/omalogi/releases/latest), then
+start the agent:
+
+```sh
+sudo pacman -U omalogi-*-x86_64.pkg.tar.zst
+systemctl --user enable --now omalogi-agent.service
+```
+
+Or build the same package from source with the release PKGBUILD (needs
+`cargo` and `clang`):
 
 ```sh
 git clone https://github.com/kurtlieber/omalogi
-cd omalogi
-cargo xtask linux package          # builds and packages; needs nfpm
-sudo pacman -U target/release/omalogi-*.pkg.tar.zst
-systemctl --user enable --now omalogi-agent.service
+cd omalogi/packaging/arch
+makepkg -si
 ```
 
 The package installs udev rules that give your user access to `/dev/hidraw*`,
