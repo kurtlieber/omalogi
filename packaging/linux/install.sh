@@ -144,7 +144,6 @@ echo "Installing desktop entry …"
 sudo install -Dm644 "${SCRIPT_DIR}/desktop/omalogi.desktop" \
   /usr/share/applications/omalogi.desktop
 
-
 # ── icon ──────────────────────────────────────────────────────────────────────
 
 # Every standard indexed hicolor size, not only the 1024 master: a stock

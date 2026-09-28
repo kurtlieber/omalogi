@@ -108,7 +108,6 @@ rustPlatform.buildRustPackage {
     # Obtain new values from the error message of a failing build, or with
     # `nix-prefetch-git <url> --rev <rev>`.
     outputHashes = {
-      "appicon-0.1.0" = "sha256-XY8NS2qrpPbUXZ3xCPGjZbbT0tSVpapbcTbgA2H5+/I=";
       "gpui-component-0.6.1" = gpuiComponentHash;
     };
   };

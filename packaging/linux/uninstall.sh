@@ -93,7 +93,6 @@ for size in 1024 512 256 128 64 48 32 16; do
   sudo rm -f "/usr/share/icons/hicolor/${size}x${size}/apps/omalogi.png"
 done
 
-
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
   sudo gtk-update-icon-cache -qtf /usr/share/icons/hicolor || true
 fi
